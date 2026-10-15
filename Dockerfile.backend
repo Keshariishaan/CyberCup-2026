@@ -1,0 +1,12 @@
+# PURPOSE: API image. HOW TO EXTEND: add system packages below; mount ./plugins and ./config to customize.
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN useradd -m shield && chown -R shield /app
+USER shield
+EXPOSE 8000
+HEALTHCHECK CMD python -c "import httpx;httpx.get('http://localhost:8000/v1/health').raise_for_status()"
+CMD ["uvicorn", "shieldgate.main:app", "--host", "0.0.0.0", "--port", "8000"]

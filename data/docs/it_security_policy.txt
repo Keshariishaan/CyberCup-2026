@@ -1,0 +1,7 @@
+IT Security Policy (all staff)
+
+Passwords must be at least 12 characters and are rotated every 180 days. Never share passwords or paste them into chats or AI tools.
+Laptops must use full-disk encryption and lock automatically after 5 minutes of inactivity.
+Remote access to internal systems requires the corporate VPN and multi-factor authentication.
+Customer personal data (Aadhaar, PAN, card numbers) must not be sent to external AI services; use the approved ShieldGate gateway which tokenizes such values.
+Report suspected incidents to security@company.example within one hour.

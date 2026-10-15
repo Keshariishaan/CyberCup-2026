@@ -1,0 +1,42 @@
+# PURPOSE: seed catalogue of RAG documents (loaded into the `documents` table on first start; afterwards
+#          managed on the Documents page). allowed_roles ["*"] = everyone. Individual users can be granted
+#          access to a single doc through a DB privilege (kind "doc"), independent of role.
+# keywords feed the access probe: if a user's question clearly targets a document they cannot see,
+# they get "You don't have permission" and the document text is never read.
+documents:
+  - doc_id: leave_policy
+    title: Leave Policy
+    file: leave_policy.txt
+    classification: internal
+    allowed_roles: ["*"]
+    keywords: [leave policy, annual leave, sick leave, casual leave, chutti]
+  - doc_id: it_security_policy
+    title: IT Security Policy
+    file: it_security_policy.txt
+    classification: internal
+    allowed_roles: ["*"]
+    keywords: [it security, password policy, laptop policy, vpn]
+  - doc_id: kyc_faq
+    title: Customer KYC FAQ
+    file: kyc_faq.txt
+    classification: internal
+    allowed_roles: [employee, hr_admin, manager, admin]
+    keywords: [kyc, customer verification, aadhaar kyc, onboarding checklist]
+  - doc_id: salary_sheet_2025
+    title: Salary Sheet FY2025
+    file: salary_sheet_2025.txt
+    classification: restricted
+    allowed_roles: [hr_admin, admin]
+    keywords: [salary sheet, payroll, all salaries, salary of all, ctc list, tankhwah sheet, employee salaries]
+  - doc_id: salary_record_karan
+    title: Salary record - Karan Verma
+    file: salary_record_karan.txt
+    classification: restricted
+    allowed_roles: [hr_admin, admin]
+    keywords: [my salary, karan salary, karan verma salary, intern stipend]
+  - doc_id: product_roadmap
+    title: Product Roadmap (Confidential)
+    file: product_roadmap.txt
+    classification: confidential
+    allowed_roles: [manager, admin]
+    keywords: [roadmap, product roadmap, upcoming launch, strategy]

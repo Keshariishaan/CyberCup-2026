@@ -1,0 +1,12 @@
+# PURPOSE: which detectors run and their settings. Keys are registry names (@register_detector).
+# HOW TO EXTEND: drop a plugin in plugins/, then add its name here.
+timeout_ms: 800
+detectors:
+  identity:            {enabled: true, settings: {}}
+  pattern:             {enabled: true, settings: {files: [patterns/india]}}
+  secrets:             {enabled: true, settings: {files: [patterns/secrets], entropy_threshold: 4.3, min_entropy_length: 24}}
+  names:               {enabled: true, settings: {titles: [mr, mrs, ms, shri, smt, sri, dr, kumari], triggers: ["my name is", "name:", "customer name", "mera naam"]}}
+  confidential:        {enabled: true, settings: {files: [patterns/confidential]}}
+  injection_rules:     {enabled: true, settings: {files: [attacks/en, attacks/hi, attacks/hinglish]}}
+  injection_semantic:  {enabled: true, settings: {corpus: attacks/corpus, thresholds: {hash: 0.62, sentence_transformers: 0.74}}}
+  example_project:     {enabled: false, settings: {codenames: ["project falcon"]}}

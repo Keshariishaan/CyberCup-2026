@@ -1,0 +1,11 @@
+# PURPOSE: regex patterns for Indian identifiers other than those in identity.yaml (which has checksums).
+# FIELDS: id, type, regex, severity, validator (optional name in detectors/validators.py), context (optional words
+#         that must appear within 40 chars before the match), message.
+patterns:
+  - {id: email, type: EMAIL, regex: '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}', severity: medium}
+  - {id: ifsc, type: IFSC, regex: '\b[A-Z]{4}0[A-Z0-9]{6}\b', severity: medium}
+  - {id: gstin, type: GSTIN, regex: '\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b', severity: medium, validator: gstin}
+  - {id: upi, type: UPI, regex: '\b[\w.\-]{2,}@(?:upi|ybl|oksbi|okhdfcbank|okaxis|paytm|apl|ibl|axl)\b', severity: medium}
+  - {id: passport, type: PASSPORT, regex: '\b[A-PR-WY][1-9]\d{6}\b', severity: high, context: [passport]}
+  - {id: voter, type: VOTER_ID, regex: '\b[A-Z]{3}\d{7}\b', severity: high, context: [voter, epic]}
+  - {id: bank_account, type: BANK_ACCOUNT, regex: '\b\d{9,18}\b', severity: high, context: [account, "a/c", acct]}

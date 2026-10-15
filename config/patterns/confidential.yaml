@@ -1,0 +1,18 @@
+# PURPOSE: confidentiality markers and honeytokens.
+# markers: phrases (case-insensitive) that classify text as CONFIDENTIAL.
+# case_sensitive_markers: matched exactly (e.g. the stamp "CONFIDENTIAL" but not the question "is this confidential?").
+# honeytokens: planted canary strings - if one ever appears in a prompt, a retrieved chunk or a response,
+# a critical alert is raised.
+markers:
+  - "strictly confidential"
+  - "internal use only"
+  - "do not distribute"
+  - "not for external"
+  - "board eyes only"
+  - "attorney-client"
+case_sensitive_markers:
+  - "CONFIDENTIAL"
+honeytokens:
+  - "HT-7F3A-SALARY-CANARY"
+  - "HT-91C2-ROADMAP-CANARY"
+  - "AKIAHONEYTOKEN00000"

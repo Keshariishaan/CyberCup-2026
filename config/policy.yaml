@@ -1,0 +1,30 @@
+# PURPOSE: finding type -> action rules. First matching rule wins; role_overrides are checked first.
+# precedence: when several findings produce several actions, the earliest in this list decides the request.
+# HOW TO EXTEND: add a rule, or a role_overrides entry. Action names come from the action registry.
+version: 1
+default_action: warn
+precedence: [deny_and_alert, deny, block, block_with_rewrite, require_approval, request_correction,
+             drop_chunk_and_alert, tokenize, redact, mask, warn]
+rules:
+  - {id: injection, types: [PROMPT_INJECTION], action: block,
+     message: "This looks like an attempt to override the assistant's rules or reveal hidden instructions."}
+  - {id: honeytoken, types: [HONEYTOKEN], action: deny_and_alert}
+  - {id: secrets, types: [SECRET], action: block_with_rewrite,
+     message: "Credentials and API keys must not be sent to an AI model."}
+  - {id: invalid-identity, types: [AADHAAR_INVALID, VID_INVALID, CARD_INVALID, PAN_INVALID, PHONE_INVALID],
+     action: request_correction}
+  - {id: identity, types: [AADHAAR, VID, CARD, PAN, PHONE, EMAIL, BANK_ACCOUNT, UPI, PASSPORT, VOTER_ID, GSTIN, IFSC],
+     action: tokenize}
+  - {id: confidential, types: [CONFIDENTIAL], action: require_approval,
+     message: "Content marked confidential needs a manager's approval before it can go to the AI."}
+  - {id: names, types: [PERSON_NAME], action: warn}
+role_overrides:
+  manager:
+    - {id: mgr-confidential, types: [CONFIDENTIAL], action: warn}
+  admin:
+    - {id: admin-confidential, types: [CONFIDENTIAL], action: warn}
+  intern:
+    - {id: intern-confidential, types: [CONFIDENTIAL], action: deny_and_alert}
+restore:
+  default: masked          # masked = last 4 only
+  per_type: {AADHAAR: full, VID: full, PAN: full, PHONE: full, EMAIL: full, CARD: masked, BANK_ACCOUNT: masked}

@@ -1,0 +1,33 @@
+# PURPOSE: run ShieldGate. Default = API + portal with SQLite and in-memory sessions.
+#   docker compose up --build
+#   docker compose --profile postgres --profile redis up --build     (set DATABASE_URL / SESSION_STORE in .env)
+#   docker compose --profile ollama up --build                       (set LLM_PROVIDER=ollama LLM_BASE_URL=http://ollama:11434)
+# Config and plugins are mounted, so editing config/*.yaml or dropping a file into plugins/ needs no rebuild.
+services:
+  backend:
+    build: {context: ., dockerfile: Dockerfile.backend}
+    env_file: [{path: .env, required: false}]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/shieldgate.db}
+      SESSION_STORE: ${SESSION_STORE:-memory}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    volumes: ["./config:/app/config", "./plugins:/app/plugins", "./data/docs:/app/data/docs", "sgdata:/data"]
+    ports: ["8000:8000"]
+  frontend:
+    build: {context: ., dockerfile: Dockerfile.frontend}
+    environment: {API_URL: "http://backend:8000"}
+    ports: ["8501:8501"]
+    depends_on: [backend]
+  postgres:
+    image: postgres:16
+    profiles: [postgres]
+    environment: {POSTGRES_USER: shieldgate, POSTGRES_PASSWORD: shieldgate, POSTGRES_DB: shieldgate}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7
+    profiles: [redis]
+  ollama:
+    image: ollama/ollama
+    profiles: [ollama]
+    volumes: ["ollama:/root/.ollama"]
+volumes: {sgdata: {}, pgdata: {}, ollama: {}}

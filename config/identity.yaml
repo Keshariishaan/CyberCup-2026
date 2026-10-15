@@ -1,0 +1,47 @@
+# PURPOSE: identity-document validation rules (FORMAT and CHECKSUM only - ShieldGate cannot confirm
+#          a number was issued; only UIDAI / the card network / the regulator can).
+# kind selects the validator in detectors/validators.py. `invalid_type` is reported only when a context
+# word precedes the number, or (grouped_triggers: true) it is typed in the typical 4-4-4 grouped layout.
+# This avoids flagging random order/invoice numbers as "invalid Aadhaar".
+types:
+  - type: AADHAAR
+    kind: verhoeff12
+    label: Aadhaar number
+    regex: '(?<!\d)(?<!\d[ -])\d{4}[ -]?\d{4}[ -]?\d{4}(?![ -]?\d)'
+    valid_type: AADHAAR
+    invalid_type: AADHAAR_INVALID
+    severity: critical
+    grouped_triggers: true
+    context: [aadhaar, aadhar, adhar, uid, "आधार"]
+  - type: VID
+    kind: verhoeff16
+    label: Aadhaar Virtual ID
+    regex: '(?<!\d)(?<!\d[ -])\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}(?![ -]?\d)'
+    valid_type: VID
+    invalid_type: VID_INVALID
+    severity: critical
+    context: [vid, "virtual id"]
+  - type: CARD
+    kind: luhn
+    label: payment card number
+    regex: '(?<!\d)(?<!\d[ -])\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{1,7}(?![ -]?\d)'
+    valid_type: CARD
+    invalid_type: CARD_INVALID
+    severity: critical
+    context: [card, credit, debit, visa, mastercard, rupay, cc]
+  - type: PAN
+    kind: pan
+    label: PAN
+    regex: '(?<![A-Za-z0-9])[A-Za-z]{5}\d{4}[A-Za-z](?![A-Za-z0-9])'
+    valid_type: PAN
+    invalid_type: PAN_INVALID
+    severity: high
+    context: [pan, "permanent account"]
+  - type: PHONE
+    kind: phone_in
+    label: phone number
+    regex: '(?<!\d)(?<!\d[ -])(?:\+?91[ -]?)?[6-9]\d{4}[ -]?\d{5}(?![ -]?\d)'
+    valid_type: PHONE
+    invalid_type: PHONE_INVALID
+    severity: medium
+    context: [phone, mobile, call, whatsapp, contact, "no."]

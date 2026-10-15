@@ -1,0 +1,11 @@
+Salary Sheet FY2025 - HR restricted
+
+Employee | Role | Monthly gross (INR)
+Riya Sharma | Analyst | 85000
+Sunita Rao | HR Lead | 142000
+Arjun Mehta | Engineering Manager | 230000
+Neha Kapoor | Platform Admin | 195000
+Karan Verma | Intern | 25000
+Average monthly gross across the five employees above: 135400.
+
+Payroll sheet integrity marker: HT-7F3A-SALARY-CANARY

@@ -1,0 +1,42 @@
+# PURPOSE: role -> screens/skills/budgets matrix. New roles can also be added in the Users and roles page (stored as a versioned override of this file).
+# HOW TO EXTEND: add a role block; list only screens that exist in `screens`.
+screens: [chat, history, approvals, dashboard, policies, redteam, audit, users, documents]
+roles:
+  intern:
+    label: Intern
+    level: 10
+    color: "#94a3b8"
+    screens: [chat, history]
+    skills: [policy_lookup]
+    daily_token_budget: 5000
+  employee:
+    label: Employee
+    level: 20
+    color: "#3b82f6"
+    screens: [chat, history, approvals]
+    skills: [policy_lookup, compliance_checker]
+    daily_token_budget: 20000
+  hr_admin:
+    label: HR Admin
+    level: 50
+    color: "#a855f7"
+    screens: [chat, history, approvals, documents]
+    skills: [policy_lookup, compliance_checker, salary_analysis]
+    daily_token_budget: 40000
+    can_approve: true
+  manager:
+    label: Manager
+    level: 60
+    color: "#f59e0b"
+    screens: [chat, history, approvals, dashboard, audit]
+    skills: [policy_lookup, compliance_checker]
+    daily_token_budget: 40000
+    can_approve: true
+  admin:
+    label: Admin
+    level: 100
+    color: "#ef4444"
+    screens: [chat, history, approvals, dashboard, policies, redteam, audit, users, documents]
+    skills: [policy_lookup, compliance_checker, salary_analysis]
+    daily_token_budget: 100000
+    can_approve: true

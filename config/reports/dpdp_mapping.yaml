@@ -1,0 +1,20 @@
+# PURPOSE: maps gateway control events/finding types to Digital Personal Data Protection Act, 2023 themes.
+# This is an engineering aid for compliance teams, NOT legal advice or a certification.
+title: DPDP Act 2023 - AI Gateway Control Summary
+controls:
+  - id: minimisation
+    theme: "Purpose limitation and data minimisation (Sec. 5-6)"
+    finding_types: [AADHAAR, VID, PAN, PHONE, EMAIL, CARD, BANK_ACCOUNT, PASSPORT, VOTER_ID]
+    evidence: "Personal identifiers were replaced by placeholders before reaching the AI model."
+  - id: security
+    theme: "Reasonable security safeguards (Sec. 8(5))"
+    finding_types: [SECRET, HONEYTOKEN, PROMPT_INJECTION]
+    evidence: "Credentials, canary tokens and injection attempts were blocked or alerted."
+  - id: accuracy
+    theme: "Accuracy and completeness (Sec. 8(3))"
+    finding_types: [AADHAAR_INVALID, VID_INVALID, CARD_INVALID, PAN_INVALID, PHONE_INVALID]
+    evidence: "Identifiers failing format/checksum validation were returned for correction."
+  - id: access
+    theme: "Access control over personal data"
+    events: [rag_denied]
+    evidence: "Requests for documents outside the user's role or granted privileges were denied before retrieval."

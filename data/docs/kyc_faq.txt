@@ -1,0 +1,7 @@
+Customer KYC FAQ (staff only)
+
+Which documents are accepted for customer KYC? Officially valid documents include Aadhaar (or its masked copy / Virtual ID), PAN, passport, voter ID and driving licence.
+Is a number that passes checksum validation genuine? No. Checksum validation only catches typing mistakes. Genuineness can only be confirmed by the issuer (UIDAI for Aadhaar, the card network or bank for cards, the Income Tax Department for PAN).
+How should staff store the Aadhaar number? Prefer the masked Aadhaar (only the last 4 digits visible). Never keep full numbers in chats, tickets or spreadsheets.
+What if the customer's number fails validation? Ask the customer to re-check the digits; common mistakes are two swapped neighbouring digits or one wrong digit.
+Onboarding checklist: identity proof, address proof, a recent photograph, signed consent for data use under the DPDP Act.
