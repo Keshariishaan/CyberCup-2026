@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Stage `retrieve` - secure RAG. Order matters: (1) probe whether the question targets a
           document the user cannot read -> "You don't have permission" and stop; (2) retrieve with
           the access filter applied INSIDE the vector query; (3) scan chunks (injection, secrets,
@@ -14,6 +14,7 @@ import asyncio
 from core.interfaces import PipelineStage
 from core.registry import register_stage
 from core.types import DENIED
+from shieldgate.rag.chunk_rules import apply_chunk_rules
 from shieldgate.rag.chunk_scanner import scan_chunks
 
 
@@ -24,13 +25,17 @@ class RetrieveStage(PipelineStage):
         if not svc.config.get("app")["rag"].get("enabled", True):
             return
         privs = ctx.extras.get("privileges", [])
-        denied = await asyncio.to_thread(svc.rag.denied_doc, ctx.text, ctx.user.role, privs)
+        attrs = ctx.extras.get("attrs")
+        denied = await asyncio.to_thread(svc.rag.denied_doc, ctx.text, ctx.user.role, privs, attrs)
         if denied:
             ctx.audit("rag_denied", severity="medium", doc_id=denied)
             ctx.halt(DENIED, "You don't have permission to access that information.")
             return
-        chunks = await asyncio.to_thread(svc.rag.retrieve, ctx.text, ctx.user.role, privs)
-        ctx.chunks = (await scan_chunks(chunks, svc.config, ctx))[:svc.config.get("app")["rag"].get("top_k", 3)]
+        chunks = await asyncio.to_thread(svc.rag.retrieve, ctx.text, ctx.user.role, privs, attrs)
+        chunks = await scan_chunks(chunks, svc.config, ctx)
+        chunks = await apply_chunk_rules(chunks, svc.rag.docs_by_id(), ctx.user.role, svc.config, ctx)  # per-role redaction
+        ctx.chunks = chunks[:svc.config.get("app")["rag"].get("top_k", 3)]
         if ctx.chunks:
-            ctx.audit("rag_retrieved", doc_ids=sorted({c["doc_id"] for c in ctx.chunks}), chunks=len(ctx.chunks))
+            ctx.audit("rag_retrieved", doc_ids=sorted({c["doc_id"] for c in ctx.chunks}), chunks=len(ctx.chunks),
+                      redacted=sum(1 for c in ctx.chunks if c.get("redacted")))
 

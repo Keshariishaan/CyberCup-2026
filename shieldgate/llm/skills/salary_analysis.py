@@ -20,11 +20,15 @@ DOC_ID = "salary_sheet_2025"
 @register_skill("salary_analysis")
 class SalaryAnalysisSkill(Skill):
     description = "Aggregate salary statistics (no individual names) from the payroll sheet."
+    command = "salary"
+    example = "/salary"
+    usage = "Average, minimum and maximum pay (no names) - HR and admin only."
+    default_query = "salary analysis"
     triggers = ["salary analysis", "average salary", "salary statistics", "payroll analysis"]
 
     async def run(self, query, user, ctx) -> str:  # noqa: ANN001
         svc = ctx.services
-        if DOC_ID not in svc.rag.accessible_doc_ids(user.role, ctx.extras.get("privileges", [])):
+        if DOC_ID not in svc.rag.accessible_doc_ids(user.role, ctx.extras.get("privileges", []), ctx.extras.get("attrs")):
             return "You don't have permission to analyse salary data."
         text = read_document(svc.settings.data_dir, "salary_sheet_2025.txt")
         values = [int(m) for m in re.findall(r"\|\s*(\d{4,7})\s*$", text, re.M)]

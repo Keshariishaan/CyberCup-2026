@@ -37,7 +37,7 @@ def cross_check(payload: str, typed_number: str) -> dict[str, Any]:
     attrs = parse_payload(payload)
     typed = re.sub(r"\D", "", typed_number)
     uid = re.sub(r"\D", "", attrs.get("uid", attrs.get("referenceid", "")))
-    notes = ["Signature was not verified by ShieldGate; confirm authenticity through UIDAI channels."]
+    notes = ["Signature was not verified by AIZA:Portal; confirm authenticity through UIDAI channels."]
     matched = bool(typed) and bool(uid) and typed[-4:] == uid[-4:]
     if not uid:
         notes.append("The payload carries no UID digits to compare.")

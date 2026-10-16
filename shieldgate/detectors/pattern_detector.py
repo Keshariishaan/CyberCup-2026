@@ -32,7 +32,10 @@ class PatternDetector(Detector):
 
     async def detect(self, text: str, ctx: Any = None) -> list[Finding]:
         out: list[Finding] = []
-        for spec, rx in self.patterns():
+        specs = self.patterns()
+        for spec, rx in specs:  # pass 1: ordinary patterns
+            if spec.get("near_types"):
+                continue
             for m in rx.finditer(text):
                 s, e = m.span()
                 if spec.get("context") and not context_near(text, s, e, spec["context"]):
@@ -42,4 +45,17 @@ class PatternDetector(Detector):
                 out.append(Finding(self.name, spec["type"], s, e, spec.get("severity", "medium"),
                                    message=spec.get("message") or f"{spec['type']} detected",
                                    meta={"pattern": spec["id"], "last4": re.sub(r"\W", "", m.group())[-4:]}))
+        for spec, rx in specs:  # pass 2: patterns that only count NEXT TO another finding (e.g. account number beside an IFSC)
+            anchors = [f for f in out if f.type in spec.get("near_types", [])]
+            if not anchors:
+                continue
+            w = int(spec.get("near_window", 80))
+            for m in rx.finditer(text):
+                s, e = m.span()
+                if any(s < f.end and e > f.start for f in out):
+                    continue
+                if any(a.start - w <= e and s <= a.end + w for a in anchors):
+                    out.append(Finding(self.name, spec["type"], s, e, spec.get("severity", "medium"),
+                                       message=spec.get("message") or f"{spec['type']} detected next to {anchors[0].type}",
+                                       meta={"pattern": spec["id"], "last4": re.sub(r"\W", "", m.group())[-4:]}))
         return out

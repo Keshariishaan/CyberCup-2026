@@ -1,4 +1,4 @@
-# ShieldGate dependencies (Python 3.11+). Heavy/optional pieces are marked; the gateway degrades gracefully
+# AIZA:Portal dependencies (Python 3.11+). Heavy/optional pieces are marked; the gateway degrades gracefully
 # without them (hash embedder, in-memory vector store, memory session store, built-in XML reader for Aadhaar).
 fastapi>=0.110
 uvicorn[standard]>=0.29

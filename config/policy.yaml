@@ -6,6 +6,8 @@ default_action: warn
 precedence: [deny_and_alert, deny, block, block_with_rewrite, require_approval, request_correction,
              drop_chunk_and_alert, tokenize, redact, mask, warn]
 rules:
+  - {id: extraction, types: [DATA_EXTRACTION], action: block,
+     message: "Requests for other people's data or conversations are not allowed."}
   - {id: injection, types: [PROMPT_INJECTION], action: block,
      message: "This looks like an attempt to override the assistant's rules or reveal hidden instructions."}
   - {id: honeytoken, types: [HONEYTOKEN], action: deny_and_alert}
@@ -13,7 +15,7 @@ rules:
      message: "Credentials and API keys must not be sent to an AI model."}
   - {id: invalid-identity, types: [AADHAAR_INVALID, VID_INVALID, CARD_INVALID, PAN_INVALID, PHONE_INVALID],
      action: request_correction}
-  - {id: identity, types: [AADHAAR, VID, CARD, PAN, PHONE, EMAIL, BANK_ACCOUNT, UPI, PASSPORT, VOTER_ID, GSTIN, IFSC],
+  - {id: identity, types: [AADHAAR, VID, CARD, PAN, PHONE, EMAIL, BANK_ACCOUNT, UPI, PASSPORT, VOTER_ID, GSTIN, IFSC, DRIVING_LICENCE, DOB],
      action: tokenize}
   - {id: confidential, types: [CONFIDENTIAL], action: require_approval,
      message: "Content marked confidential needs a manager's approval before it can go to the AI."}
@@ -26,5 +28,6 @@ role_overrides:
   intern:
     - {id: intern-confidential, types: [CONFIDENTIAL], action: deny_and_alert}
 restore:
-  default: masked          # masked = last 4 only
-  per_type: {AADHAAR: full, VID: full, PAN: full, PHONE: full, EMAIL: full, CARD: masked, BANK_ACCOUNT: masked}
+  default: masked          # masked = last 4 only; approval = masked until an approver allows a time-limited reveal
+  reveal: {roles: [finance, admin], ttl_minutes: 10}   # who may ask for a reveal, and how long an approval lasts
+  per_type: {CARD: approval, BANK_ACCOUNT: approval, DRIVING_LICENCE: full, DOB: full, AADHAAR: full, VID: full, PAN: full, PHONE: full, EMAIL: full}

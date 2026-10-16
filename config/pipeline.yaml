@@ -2,8 +2,8 @@
 # `audit` is flagged always_run in code so it executes even when a stage halts the request.
 # response_detectors: detectors (names from detectors.yaml) applied to the model's answer.
 # Total time allowed per request INCLUDING the model call; exceeding it fails closed. Real LLMs often need
-# more than 2 s, so the default is 15000; set 2000 to enforce a strict budget with a fast model.
-latency_budget_ms: 15000
+# more than 2 s, so the default is 60000; set 2000 to enforce a strict budget with a fast model.
+latency_budget_ms: 60000
 inbound: [normalize, detect, decide, act, retrieve, build_prompt, call_llm]
 outbound: [inspect_response, restore, audit]
 response_detectors: [secrets, confidential, identity]

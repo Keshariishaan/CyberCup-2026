@@ -1,5 +1,5 @@
 """
-PURPOSE : Exception hierarchy for ShieldGate. Messages here must NEVER contain
+PURPOSE : Exception hierarchy for AIZA:Portal. Messages here must NEVER contain
           prompts, responses or sensitive values (privacy by design).
 INPUTS  : short, static, human-safe messages.
 OUTPUTS : exceptions mapped to HTTP errors in shieldgate/main.py.
@@ -59,3 +59,17 @@ class NotFound(ShieldGateError):
 
     status_code = 404
     public_message = "Not found"
+
+
+class Conflict(ShieldGateError):
+    """The object already exists."""
+
+    status_code = 409
+    public_message = "Already exists"
+
+
+class BadRequest(ShieldGateError):
+    """The request is well-formed but not acceptable (e.g. it contains sensitive data)."""
+
+    status_code = 422
+    public_message = "Invalid request"

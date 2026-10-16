@@ -32,6 +32,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # attributes for attribute-based document access ("*" = matches any value)
+    department: Mapped[str] = mapped_column(String(64), default="")
+    region: Mapped[str] = mapped_column(String(64), default="")
+    clearance: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class UserPrivilege(Base):
@@ -58,6 +62,11 @@ class Document(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    version: Mapped[int] = mapped_column(Integer, default=1)  # bumped whenever the text is replaced
+    # {"departments": [...], "regions": [...], "min_clearance": n} - empty/absent = no restriction
+    attributes: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # [{"roles": [...] | "*", "mask_columns": [...], "mask_types": [...], "hide_rows": [...]}]
+    chunk_rules: Mapped[list[Any]] = mapped_column(JSON, default=list)
 
 
 class Conversation(Base):
@@ -139,3 +148,74 @@ class ConfigVersion(Base):
     comment: Mapped[str] = mapped_column(String(255), default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    tests: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)  # policy test prompts stored with this version
+
+
+class AccessRequest(Base):
+    """A user's written request for access; text is Fernet-encrypted and checked for sensitive data first."""
+    __tablename__ = "access_requests"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    requester_id: Mapped[int] = mapped_column(Integer, index=True)
+    requester_name: Mapped[str] = mapped_column(String(64), default="")
+    text_enc: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    decided_by: Mapped[str] = mapped_column(String(64), default="")
+    note: Mapped[str] = mapped_column(String(255), default="")
+    granted: Mapped[str] = mapped_column(String(160), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Incident(Base):
+    """Groups related alerts, blocks and repeated attempts by user + category with an open/resolved lifecycle."""
+    __tablename__ = "incidents"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, index=True)
+    username: Mapped[str] = mapped_column(String(64), default="")
+    category: Mapped[str] = mapped_column(String(48), index=True)
+    severity: Mapped[str] = mapped_column(String(12), default="high")
+    status: Mapped[str] = mapped_column(String(12), default="open", index=True)
+    count: Mapped[int] = mapped_column(Integer, default=1)
+    repeated: Mapped[bool] = mapped_column(Boolean, default=False)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_request_id: Mapped[str] = mapped_column(String(32), default="")
+    resolved_by: Mapped[str] = mapped_column(String(64), default="")
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    note: Mapped[str] = mapped_column(String(255), default="")
+
+
+class RevealRequest(Base):
+    """Request to see the real value behind a placeholder; valid only after approval and only until expires_at."""
+    __tablename__ = "reveal_requests"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    requester_id: Mapped[int] = mapped_column(Integer, index=True)
+    requester_name: Mapped[str] = mapped_column(String(64), default="")
+    conversation_id: Mapped[str] = mapped_column(String(32), index=True)
+    placeholder: Mapped[str] = mapped_column(String(48))
+    reason: Mapped[str] = mapped_column(String(200), default="")
+    status: Mapped[str] = mapped_column(String(12), default="pending", index=True)
+    decided_by: Mapped[str] = mapped_column(String(64), default="")
+    note: Mapped[str] = mapped_column(String(255), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class CustomPrivilege(Base):
+    """A named bundle of data privileges (documents + skills) that an admin can grant to users in one step."""
+    __tablename__ = "custom_privileges"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(48), unique=True, index=True)
+    description: Mapped[str] = mapped_column(String(200), default="")
+    docs: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    skills: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    created_by: Mapped[str] = mapped_column(String(64), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class NotificationRead(Base):
+    """When a user last pressed "mark all read" on the notification bell (drives the red dot)."""
+    __tablename__ = "notification_reads"
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    last_read_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

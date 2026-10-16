@@ -16,6 +16,10 @@ from core.registry import register_skill
 @register_skill("compliance_checker")
 class ComplianceCheckerSkill(Skill):
     description = "List DPDP Act themes relevant to the personal data mentioned in a request."
+    command = "compliance"
+    example = "/compliance can I share [PAN_1] with a vendor?"
+    usage = "See which DPDP themes apply to the personal data in a request."
+    default_query = "compliance check"
     triggers = ["compliance", "dpdp", "is it allowed to share", "compliant", "legal to share"]
 
     async def run(self, query, user, ctx) -> str:  # noqa: ANN001

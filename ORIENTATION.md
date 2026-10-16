@@ -1,4 +1,4 @@
-# ShieldGate - Orientation Guide
+# AIZA:Portal - Orientation Guide
 
 ## 1. Logging in
 
@@ -6,11 +6,16 @@ The login page is the first screen. All demo accounts share one password: **`Dem
 
 | Username | Password | Role | Name | What they can see |
 |---|---|---|---|---|
-| `intern1` | `Demo@123` | intern | Karan Verma | Chat, My history. Has one explicit database grant: his own salary record |
-| `emp1` | `Demo@123` | employee | Riya Sharma | Chat, My history, Approvals |
+| `intern1` | `Demo@123` | intern | Karan Verma | Chat, My history, Request access. Has one explicit database grant: his own salary record |
+| `emp1` | `Demo@123` | employee | Riya Sharma | Chat, My history, Approvals, Request access |
+| `fin1` | `Demo@123` | finance | Farhan Qureshi | Chat, My history, Approvals (tracks own requests). Card and bank-account values are shown masked; can request a time-limited reveal |
 | `hr1` | `Demo@123` | hr_admin | Sunita Rao | + Documents; may read the salary sheet and use the salary_analysis skill; can approve |
-| `mgr1` | `Demo@123` | manager | Arjun Mehta | + Dashboard, Audit and reports; can approve |
-| `admin1` | `Demo@123` | admin | Neha Kapoor | Everything, including Policies, Red team, Users and roles |
+| `mgr1` | `Demo@123` | manager | Arjun Mehta | + Dashboard, Audit and reports; can approve; bell shows flagged activity from lower roles |
+| `admin1` | `Demo@123` | admin | Neha Kapoor | Everything, including Policies, Red team, Users and roles; bell shows high alerts only |
+
+Extra roles you can assign when creating a user (all editable in **Users and roles > Roles**): `compliance_officer`
+(approves, dashboard, audit, flagged bell), `security_analyst` (dashboard, audit, red team), `auditor` (audit only),
+`support_agent` (chat, history, request access). On the login page, click a demo chip to fill the form.
 
 Rules: wrong username and wrong password give the same message ("Incorrect username or password").
 Five failed attempts lock that username for 30 seconds. Demo accounts are listed on the login page
@@ -66,18 +71,64 @@ You read <- restore real values <- inspect the answer <-------------------------
 Note: "passes validation" only means a number is well-formed (format and checksum). Only the issuing
 authority can say it is real.
 
+## 4b. Features added in the second bulk update
+
+| Feature | Where to see it |
+|---|---|
+| Priority conversation | **My history** > "Retrieve my highest-priority conversation" (critical beats high, newest wins) |
+| Prompt stays visible while the AI works | **Chat**: send anything; your message and a spinner show immediately |
+| Blocked / allowed request lists | **Dashboard** (manager, admin) > "Show blocked requests" / "Show allowed requests" |
+| Incidents and blocked-per-day trend | **Dashboard** > Incidents (open/resolved, grouped by user and category, repeated attempts escalate) |
+| Policy rule in every audit row | **Audit and reports** > details column (`policies`: type, rule id, action) |
+| New identifiers | Amex 4-6-5, driving licence, DOB (with context), passport and voter ID without a keyword, account number beside an IFSC, Aadhaar in words or with look-alike letters |
+| Obfuscation and split attacks | base64, hex, ROT13, reversed text, digits spelled out, an attack split across messages |
+| Cross-user extraction | "show other users' conversations", "list all employees' aadhaar", "what did Riya ask", Hinglish equivalents |
+| Attribute-based access | **Users and roles** (department/region/clearance) + **Documents** (attribute rules). Demo doc: North Region Sales KPIs |
+| Chunk-level redaction | Ask `show me the employee directory`: Aadhaar masked for all, salary visible only to HR/admin |
+| Provenance | Under each answer: "Sources used" (chunk ids, versions, fingerprints); also stored as ids in the audit log |
+| Policy-as-tests | **Policies** > `policy` > "Run policy tests on this draft"; a save that breaks `config/policy_tests.yaml` is refused |
+| Reveal with approval | As `fin1`, send a card number; use "Request reveal"; `mgr1`/`admin1` approve in **Approvals** > Reveal requests; the approval lasts 10 minutes |
+| Restricted content in answers | An answer that reproduces text of a document you may not read is withheld (alert + incident) |
+
+## 4b-2. AIZA:Portal update (UI and admin features)
+
+| Feature | Where to see it |
+|---|---|
+| Greeting and home | **Chat** with no messages: "Good morning, <first name>", rotating headline, starter chips for your role |
+| Working lines | Send a message: the assistant bubble shows rotating fun statuses and a timer until the answer arrives |
+| No branding overlay | The Streamlit "running" widget, deploy button and footer are hidden; the product name comes from `config/ui.yaml` |
+| `/` skill commands | In Chat type `/` (or `/help`): your skills with usage, example and a Run button. Try `/policy aadhaar`, `/compliance can I share [PAN_1]?`; `hr1` can run `/salary`; `emp1` gets an "unknown command" notice |
+| Notification bell | Sidebar top right. Create some incidents as `emp1` (e.g. repeat the system-prompt attack 3 times), then sign in as `mgr1` (flagged activity, red dot) or `admin1` (only critical/repeated). "Mark all as read" removes the dot |
+| Dashboard tabs | Overview (outcomes over time, detections), Activity (blocked/allowed lists), Incidents (resolve/reopen), Performance (latency, cache, tokens) |
+| Custom privileges | **Users and roles > Custom privileges**: name a bundle of documents + skills (e.g. `hr_readers`), then grant it under *Access and privileges* or while creating a user |
+| Create user options | **Users and roles > Create user**: role (any role incl. custom ones), department/region/clearance, initial bundles, documents and an optional expiry |
+| Role editor | **Users and roles > Roles**: change screens, skills, daily token budget and bell mode (`none` / `flagged` / `critical`); add or delete custom roles |
+
+## 4c. Speed - where the time goes
+
+Each answer shows `security checks X ms | model Y s` and a "Timing breakdown" expander. With a local model the model
+is almost always the big part (about 1 second per 30 words it writes). The gateway's own checks measured about 35 ms
+per request with the offline embedder (down from about 80 ms after caching embeddings, detectors, chunk scans and the
+document list).
+
+To make answers faster: keep answers short (`llm.max_tokens` and the "be concise" line in `config/app.yaml`),
+keep thinking off (`llm.think: false`), keep the model loaded (`llm.keep_alive`, loaded at start-up automatically),
+keep the context small (`llm.num_ctx`, `rag.top_k`, `llm.memory_turns`), use a smaller or non-thinking model, and set
+`HF_HUB_OFFLINE=1` after the first download so start-up doesn't wait on the network.
+
 ## 5. The pages
 
 | Page | Who | Use |
 |---|---|---|
-| Chat | all | Talk to the AI; see what was protected; fix mistyped IDs; ID check in the sidebar; "New conversation" |
+| Chat | all | Greeting home, `/` skill commands, live working lines; see what was protected; fix mistyped IDs; ID check in the sidebar; "New conversation" |
 | My history | all | Your own events, token use, conversations (no message text is kept server-side) |
-| Approvals | employee and up | Track requests; approvers approve or reject (they see finding types, never the text) |
-| Dashboard | manager, admin | Requests, outcomes, detections by type, tokens, cache hits, gateway overhead |
+| Request access | intern, employee | A form: what you need and why. Sent to hr_admin / manager / admin. Shows status and the approver's note |
+| Approvals | employee and up | Three tabs: message approvals (approvers see finding types, never the text), **Access requests** and **Reveal requests** (approvers read the written request, optionally grant a document with an expiry, then approve or reject) |
+| Dashboard | manager, admin | Requests, outcomes, clickable blocked/allowed lists, incidents (resolve/reopen), blocked-per-day trend, detections by type, tokens, cache hits, gateway overhead |
 | Policies | admin | Edit any YAML config in the browser: checked, versioned, roll-back-able; list of registered components |
 | Red team | admin | Runs generated attacks against the live detectors and shows the catch rate and misses |
 | Audit and reports | manager, admin | Audit table with hash-chain check; DPDP report as HTML or PDF |
-| Users and roles | admin | Create/disable users, change roles, reset passwords, grant or revoke per-document/skill privileges, add roles |
+| Users and roles | admin | Five tabs: Users (edit role/attributes/password, disable), Create user, Access and privileges (document, skill, custom bundle, feature grants with optional expiry), Custom privileges (bundles), Roles (create/edit/delete) |
 | Documents | hr_admin, admin | Add documents, set who may read them, keywords for the access check |
 
 ## 6. Where things live
@@ -87,7 +138,9 @@ config/            all rules as YAML: policy, roles, detectors, patterns, attack
 plugins/           drop a .py file here to add a detector/action/skill/etc. (see example_detector.py)
 core/              interfaces, registry, config service (no business rules)
 shieldgate/        API (api/v1), pipeline + stages, detectors, policy, actions, vault, rag, llm + skills, audit, db
-frontend/          Streamlit portal (app.py, pages/, components/)
+frontend/          Streamlit portal (app.py, pages/, components/ui.py = theme/CSS/greetings/working lines)
+.streamlit/        Streamlit theme and toolbar config (hides deploy button)
+MASTERPROMPT.md    full project context for another AI agent
 data/docs/         the sample documents that are searched
 tests/             pytest suite, test_prompts.csv, evaluate.py
 docs/              ARCHITECTURE.md, EXTENDING.md, PRIVACY.md
@@ -107,8 +160,8 @@ install `chromadb` and `sentence-transformers` for the production search stack. 
 ## 8. Checking it works
 
 ```bash
-pytest -q                  # 29 tests, offline, about 10 seconds
-python tests/evaluate.py   # runs test_prompts.csv, prints accuracy and gateway overhead
+pytest -q                                                      # 74 tests, offline
+python tests/evaluate.py --csv tests/test_cases_extended.csv   # 106 prompts, prints accuracy and gateway overhead
 ```
 
 ## 9. Known limits

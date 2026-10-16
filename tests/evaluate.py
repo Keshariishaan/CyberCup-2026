@@ -19,11 +19,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 TMP = Path(tempfile.mkdtemp(prefix="shieldgate_eval_"))
+import shutil
+shutil.copytree(ROOT / "data", TMP / "data", ignore=shutil.ignore_patterns("chroma"))  # tests write documents: use a copy
+os.environ["DATA_DIR"] = str(TMP / "data")
 os.environ.update({"DATABASE_URL": f"sqlite:///{(TMP / 'eval.db').as_posix()}", "VECTOR_STORE": "memory",
                    "EMBEDDER": os.environ.get("EMBEDDER", "hash"), "LLM_PROVIDER": "mock", "SESSION_STORE": "memory",
                    "LOG_LEVEL": "ERROR"})
 
-USERS = {"intern": "intern1", "employee": "emp1", "hr_admin": "hr1", "manager": "mgr1", "admin": "admin1"}
+USERS = {"intern": "intern1", "employee": "emp1", "hr_admin": "hr1", "manager": "mgr1", "admin": "admin1", "finance": "fin1"}
 
 
 def main() -> int:

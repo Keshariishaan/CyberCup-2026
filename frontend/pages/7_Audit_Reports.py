@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Audit trail viewer (hash-chain integrity check) and downloadable compliance reports
           (any registered report format, e.g. DPDP HTML/PDF).
 INPUTS  : /v1/admin/audit, /v1/reports/*. OUTPUTS : tables and download buttons.
@@ -13,9 +13,10 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api_client as api  # noqa: E402
+from components import ui  # noqa: E402
 
 api.guard("audit")
-st.title("Audit and reports")
+ui.page_header("Audit and reports", "A tamper-evident trail - without any message content", "&#129534;")
 tab_a, tab_r = st.tabs(["Audit trail", "Compliance reports"])
 with tab_a:
     data = api.get("/admin/audit", params={"limit": 300})

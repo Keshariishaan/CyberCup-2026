@@ -9,4 +9,7 @@ detectors:
   confidential:        {enabled: true, settings: {files: [patterns/confidential]}}
   injection_rules:     {enabled: true, settings: {files: [attacks/en, attacks/hi, attacks/hinglish]}}
   injection_semantic:  {enabled: true, settings: {corpus: attacks/corpus, thresholds: {hash: 0.62, sentence_transformers: 0.74}}}
+  cross_user_extraction: {enabled: true, settings: {files: [attacks/extraction]}}
+  obfuscation:         {enabled: true, settings: {methods: [digit_words, lookalike, base64, hex, rot13, reversed]}}
+  injection_split:     {enabled: true, settings: {previous_messages: 3}}
   example_project:     {enabled: false, settings: {codenames: ["project falcon"]}}

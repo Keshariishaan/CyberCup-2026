@@ -8,6 +8,7 @@ HOW TO EXTEND : add a router module under api/v1 and include it in ROUTERS.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
@@ -53,7 +54,7 @@ def build_state(app: FastAPI, settings: Settings) -> None:
     vstore = make_store(settings.vector_store, settings.data_dir)
     limits = config.get("app")["limits"]
     vault = TokenVault(store, settings.fernet(), settings.vault_key, limits.get("vault_ttl_s", 3600))
-    rag = RAGBackend(vstore, embedder, sf, config)
+    rag = RAGBackend(vstore, embedder, sf, config, settings.data_dir)
     import os
     seed_all(settings, config, sf, vstore, embedder, os.environ.get("SEED_DEMO_USERS", "true").lower() != "false")
     # warm-up: load the embedding model and attack-corpus vectors now, so the first user request
@@ -86,18 +87,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):  # noqa: ANN202
         build_state(app, settings)
         await app.state.audit.start()
-        log.info("ShieldGate started (llm=%s, store=%s)", settings.llm_provider or "config", settings.session_store)
+        app.state.warm = asyncio.create_task(app.state.services.llm.warm_up())  # load the model in the background
+        log.info("AIZA:Portal started (llm=%s, store=%s)", settings.llm_provider or "config", settings.session_store)
         yield
         await app.state.audit.stop()
 
-    app = FastAPI(title="ShieldGate", version="1.0", lifespan=lifespan)
+    app = FastAPI(title="AIZA:Portal", version="1.0", lifespan=lifespan)
 
     @app.exception_handler(ShieldGateError)
     async def _handle(_: Request, exc: ShieldGateError) -> JSONResponse:
         return JSONResponse({"detail": exc.public}, status_code=exc.status_code)
 
-    from shieldgate.api.v1 import admin, approvals, auth, chat, health, history, identity, policy, redteam, reports
-    for module in (health, auth, chat, identity, history, approvals, admin, policy, redteam, reports):
+    from shieldgate.api.v1 import access, admin, approvals, auth, chat, health, history, identity, notifications, policy, redteam, reports, reveal
+    for module in (health, auth, chat, identity, history, approvals, access, reveal, notifications, admin, policy, redteam, reports):
         app.include_router(module.router, prefix="/v1")
     return app
 

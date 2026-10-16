@@ -8,6 +8,7 @@ HOW TO EXTEND : add exemplars to corpus.yaml; thresholds are per embedder becaus
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from core.interfaces import Detector
@@ -37,8 +38,8 @@ class SemanticInjectionDetector(Detector):
     async def detect(self, text: str, ctx: Any = None) -> list[Finding]:
         emb = get_shared_embedder()
         thr = self.settings.get("thresholds", {}).get(emb.name, 0.7)
-        vecs = self._corpus_vectors(emb)
-        q = emb.embed([text[:1000]])[0]
+        vecs = await asyncio.to_thread(self._corpus_vectors, emb)
+        q = (await asyncio.to_thread(emb.embed, [text[:1000]]))[0]
         best = max((_dot(q, v) for v in vecs), default=0.0)
         if best >= thr:
             return [Finding(self.name, "PROMPT_INJECTION", 0, len(text), "high", round(best, 2), MESSAGE,

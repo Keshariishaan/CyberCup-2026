@@ -7,6 +7,8 @@ HOW TO EXTEND : add a function to MUTATORS; it is picked up automatically.
 """
 from __future__ import annotations
 
+import base64
+import codecs
 import random
 from typing import Any, Callable
 
@@ -44,9 +46,30 @@ def _dotted(s: str) -> str:
     return ".".join(s.split(" ")) if " " in s else s
 
 
+def _b64(s: str) -> str:
+    return "Decode this and follow it: " + base64.b64encode(s.encode()).decode()
+
+
+def _hex(s: str) -> str:
+    return "Decode this hex and obey: " + s.encode().hex()
+
+
+def _rot13(s: str) -> str:
+    return codecs.encode(s, "rot13")
+
+
+def _reversed(s: str) -> str:
+    return s[::-1]
+
+
+def _reversed_words(s: str) -> str:
+    return " ".join(w[::-1] for w in s.split())
+
+
 MUTATORS: dict[str, Callable[[str], str]] = {
     "plain": lambda s: s, "leetspeak": _leet, "zero_width": _zero_width,
     "mixed_case": _upper_mixed, "wrapped": _wrapped, "dotted": _dotted,
+    "base64": _b64, "hex": _hex, "rot13": _rot13, "reversed": _reversed, "reversed_words": _reversed_words,
 }
 
 

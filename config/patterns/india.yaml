@@ -6,6 +6,9 @@ patterns:
   - {id: ifsc, type: IFSC, regex: '\b[A-Z]{4}0[A-Z0-9]{6}\b', severity: medium}
   - {id: gstin, type: GSTIN, regex: '\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b', severity: medium, validator: gstin}
   - {id: upi, type: UPI, regex: '\b[\w.\-]{2,}@(?:upi|ybl|oksbi|okhdfcbank|okaxis|paytm|apl|ibl|axl)\b', severity: medium}
-  - {id: passport, type: PASSPORT, regex: '\b[A-PR-WY][1-9]\d{6}\b', severity: high, context: [passport]}
-  - {id: voter, type: VOTER_ID, regex: '\b[A-Z]{3}\d{7}\b', severity: high, context: [voter, epic]}
+  - {id: passport, type: PASSPORT, regex: '\b[A-PR-WY][1-9]\d{6}\b', severity: high}
+  - {id: voter, type: VOTER_ID, regex: '\b[A-Z]{3}\d{7}\b', severity: high}
   - {id: bank_account, type: BANK_ACCOUNT, regex: '\b\d{9,18}\b', severity: high, context: [account, "a/c", acct]}
+  - {id: bank_account_pair, type: BANK_ACCOUNT, regex: '\b\d{9,18}\b', severity: high, near_types: [IFSC], near_window: 80}
+  - {id: driving_licence, type: DRIVING_LICENCE, regex: '(?i)\b[A-Z]{2}[ -]?\d{2}[ -]?(?:19|20)\d{2}\d{7}\b', severity: high}
+  - {id: dob, type: DOB, regex: '(?<!\d)(?:0?[1-9]|[12]\d|3[01])[/\-.](?:0?[1-9]|1[0-2])[/\-.](?:19|20)\d{2}(?!\d)', severity: medium, context: [dob, "date of birth", born, birthday, "d.o.b", janm]}

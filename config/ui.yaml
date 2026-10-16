@@ -1,5 +1,5 @@
 # PURPOSE: login-page / sidebar branding. Editable on the Policies page (validated, versioned).
-product_name: ShieldGate
-tagline: Enterprise AI Security Gateway
+product_name: "AIZA:Portal"
+tagline: "Enterprise AI security gateway"
 logo_path: ""            # path to an image file visible to the frontend container; empty = emoji shield
-accent_color: "#2563eb"
+accent_color: "#7c83ff"

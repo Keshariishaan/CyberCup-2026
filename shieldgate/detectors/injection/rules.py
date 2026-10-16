@@ -35,15 +35,22 @@ def deobfuscate(text: str) -> str:
 @register_detector("injection_rules")
 class InjectionRulesDetector(Detector):
     def _load(self) -> tuple[list[str], list[re.Pattern[str]]]:
-        phrases: list[str] = []
-        regexes: list[re.Pattern[str]] = []
-        for f in self.settings.get("files", []):
-            cfg = self.config.get(f)
-            phrases += [deobfuscate(p) for p in cfg.get("phrases", [])]
-            regexes += [re.compile(r) for r in cfg.get("regexes", [])]
-        return phrases, regexes
+        cfgs = [self.config.get(f) for f in self.settings.get("files", [])]
+        key = tuple(id(c) for c in cfgs)
+        if getattr(self, "_loaded_key", None) != key:  # recompute only when the config object changed
+            phrases: list[str] = []
+            regexes: list[re.Pattern[str]] = []
+            for cfg in cfgs:
+                phrases += [deobfuscate(p) for p in cfg.get("phrases", [])]
+                regexes += [re.compile(r) for r in cfg.get("regexes", [])]
+            self._loaded, self._loaded_key = (phrases, regexes), key
+        return self._loaded
 
-    async def detect(self, text: str, ctx: Any = None) -> list[Finding]:
+    async def detect_fast(self, text: str, ctx: Any = None) -> list[Finding]:
+        """Exact phrase and regex matching only (skips the fuzzy word-window scan) - used on decoded variants."""
+        return await self.detect(text, ctx, fuzzy=False)
+
+    async def detect(self, text: str, ctx: Any = None, fuzzy: bool = True) -> list[Finding]:
         phrases, regexes = self._load()
         hits: list[tuple[int, int, str]] = []
         for rx in regexes:
@@ -55,7 +62,7 @@ class InjectionRulesDetector(Detector):
                 if p and p in clean:
                     hits.append((0, len(text), "phrase"))
                     break
-        if not hits and len(clean) < 3000:
+        if fuzzy and not hits and len(clean) < 3000:
             words = clean.split()
             for p in phrases:
                 n = len(p.split())

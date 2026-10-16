@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Token-usage meters (sidebar meter and a per-day chart).
 INPUTS  : used/budget numbers; usage dict from /v1/history/usage.
 OUTPUTS : progress bar / Plotly chart.
@@ -25,6 +25,7 @@ def usage_chart(daily: dict[str, dict]) -> None:
     days = sorted(daily)
     fig = go.Figure([go.Bar(name="Prompt", x=days, y=[daily[d]["prompt"] for d in days]),
                      go.Bar(name="Completion", x=days, y=[daily[d]["completion"] for d in days])])
-    fig.update_layout(barmode="stack", height=280, margin=dict(l=0, r=0, t=10, b=0))
-    st.plotly_chart(fig, width="stretch")
+    fig.update_layout(barmode="stack")
+    from components.ui import plotly_layout
+    st.plotly_chart(plotly_layout(fig, 280), width="stretch")
 

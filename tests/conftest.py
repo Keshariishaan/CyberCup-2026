@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : pytest fixtures - an isolated app (in-memory SQLite, memory session store, hash
           embedder, mock LLM) and helpers to log in as the seeded demo users.
 INPUTS  : none. OUTPUTS : `client`, `login()` fixtures.
@@ -14,6 +14,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 TMP = Path(tempfile.mkdtemp(prefix="shieldgate_test_"))  # file DB: in-memory SQLite shares one connection across threads
+import shutil
+shutil.copytree(ROOT / "data", TMP / "data", ignore=shutil.ignore_patterns("chroma"))  # tests write documents: use a copy
+os.environ["DATA_DIR"] = str(TMP / "data")
 os.environ.update({"DATABASE_URL": f"sqlite:///{(TMP / 'test.db').as_posix()}", "SESSION_STORE": "memory", "VECTOR_STORE": "memory",
                    "EMBEDDER": "hash", "LLM_PROVIDER": "mock", "ENV": "test", "SHOW_DEMO_HINT": "true",
                    "LOG_LEVEL": "WARNING"})
@@ -37,7 +40,7 @@ def client():
 @pytest.fixture(scope="session")
 def tokens(client):
     out = {}
-    for u in ("intern1", "emp1", "hr1", "mgr1", "admin1"):
+    for u in ("intern1", "emp1", "hr1", "mgr1", "admin1", "fin1"):
         r = client.post("/v1/auth/login", json={"username": u, "password": "Demo@123"})
         assert r.status_code == 200, r.text
         out[u] = {"Authorization": "Bearer " + r.json()["access_token"]}

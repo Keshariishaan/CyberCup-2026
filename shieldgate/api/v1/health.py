@@ -22,6 +22,6 @@ def branding(request: Request) -> dict:
     s = request.app.state.settings
     out = {k: ui.get(k, "") for k in ("product_name", "tagline", "logo_path", "accent_color")}
     out["demo_hint"] = (
-        [{"username": u, "role": r, "password": "Demo@123"} for u, r, _ in
+        [{"username": u[0], "role": u[1], "password": "Demo@123"} for u in
          __import__("shieldgate.seed", fromlist=["DEMO_USERS"]).DEMO_USERS] if s.show_demo_hint else [])
     return out

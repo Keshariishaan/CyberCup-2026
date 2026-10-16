@@ -1,4 +1,4 @@
-# Extending ShieldGate (no core changes)
+# Extending AIZA:Portal (no core changes)
 
 Restart the API after adding a plugin file; config edits made in the **Policies** page apply within ~3 s.
 

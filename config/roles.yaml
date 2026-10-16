@@ -1,21 +1,28 @@
 # PURPOSE: role -> screens/skills/budgets matrix. New roles can also be added in the Users and roles page (stored as a versioned override of this file).
 # HOW TO EXTEND: add a role block; list only screens that exist in `screens`.
-screens: [chat, history, approvals, dashboard, policies, redteam, audit, users, documents]
+screens: [chat, history, approvals, dashboard, policies, redteam, audit, users, documents, access]
 roles:
   intern:
     label: Intern
     level: 10
     color: "#94a3b8"
-    screens: [chat, history]
+    screens: [chat, history, access]
     skills: [policy_lookup]
     daily_token_budget: 5000
   employee:
     label: Employee
     level: 20
     color: "#3b82f6"
-    screens: [chat, history, approvals]
+    screens: [chat, history, approvals, access]
     skills: [policy_lookup, compliance_checker]
     daily_token_budget: 20000
+  finance:
+    label: Finance
+    level: 40
+    color: "#10b981"
+    screens: [chat, history, approvals]
+    skills: [policy_lookup, compliance_checker]
+    daily_token_budget: 30000
   hr_admin:
     label: HR Admin
     level: 50
@@ -25,6 +32,7 @@ roles:
     daily_token_budget: 40000
     can_approve: true
   manager:
+    notifications: flagged
     label: Manager
     level: 60
     color: "#f59e0b"
@@ -33,6 +41,7 @@ roles:
     daily_token_budget: 40000
     can_approve: true
   admin:
+    notifications: critical
     label: Admin
     level: 100
     color: "#ef4444"
@@ -40,3 +49,33 @@ roles:
     skills: [policy_lookup, compliance_checker, salary_analysis]
     daily_token_budget: 100000
     can_approve: true
+  compliance_officer:
+    label: Compliance Officer
+    level: 55
+    color: "#0ea5e9"
+    screens: [chat, history, approvals, dashboard, audit]
+    skills: [policy_lookup, compliance_checker]
+    daily_token_budget: 40000
+    can_approve: true
+    notifications: flagged
+  security_analyst:
+    label: Security Analyst
+    level: 65
+    color: "#f43f5e"
+    screens: [chat, history, dashboard, audit, redteam]
+    skills: [policy_lookup, compliance_checker]
+    daily_token_budget: 60000
+  auditor:
+    label: Auditor
+    level: 45
+    color: "#64748b"
+    screens: [chat, history, audit]
+    skills: [policy_lookup]
+    daily_token_budget: 20000
+  support_agent:
+    label: Support Agent
+    level: 15
+    color: "#f59e0b"
+    screens: [chat, history, access]
+    skills: [policy_lookup]
+    daily_token_budget: 10000

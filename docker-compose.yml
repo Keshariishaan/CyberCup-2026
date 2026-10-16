@@ -1,4 +1,4 @@
-# PURPOSE: run ShieldGate. Default = API + portal with SQLite and in-memory sessions.
+# PURPOSE: run AIZA:Portal. Default = API + portal with SQLite and in-memory sessions.
 #   docker compose up --build
 #   docker compose --profile postgres --profile redis up --build     (set DATABASE_URL / SESSION_STORE in .env)
 #   docker compose --profile ollama up --build                       (set LLM_PROVIDER=ollama LLM_BASE_URL=http://ollama:11434)

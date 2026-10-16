@@ -6,6 +6,7 @@ HOW TO EXTEND : enable/disable detectors in detectors.yaml; add new ones as plug
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
@@ -13,15 +14,20 @@ from core.interfaces import PipelineStage
 from core.registry import register_stage
 from shieldgate.detectors.base import build_detectors, run_detectors
 
-_cache: dict[str, Any] = {"key": None, "detectors": None}
+_cache: dict[tuple[str, tuple[str, ...] | None], dict[str, Any]] = {}
 
 
 def get_detectors(config: Any, only: list[str] | None = None) -> dict[str, Any]:
-    """Detector instances cached per detectors-config content (keeps corpus embeddings warm)."""
-    key = json.dumps([config.get("detectors"), only], sort_keys=True, default=str)
-    if _cache.get("key") != key:
-        _cache["key"], _cache["detectors"] = key, build_detectors(config, only)
-    return _cache["detectors"]
+    """Detector instances cached per (detectors-config content, requested set). Stages ask for different sets
+    (all / chunk scan / response check / decoded variants); each keeps its own warm instances, so the attack-corpus
+    embeddings and compiled rules are built once, not on every request."""
+    key = hashlib.md5(json.dumps(config.get("detectors"), sort_keys=True, default=str).encode()).hexdigest()
+    k = (key, tuple(only) if only is not None else None)
+    if k not in _cache:
+        if len(_cache) > 64:
+            _cache.clear()
+        _cache[k] = build_detectors(config, only)
+    return _cache[k]
 
 
 @register_stage("detect")

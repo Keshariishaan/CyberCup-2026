@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Seed the documents table from config/rag/documents.yaml and (re)index document text
           into the vector store as paragraph chunks.
 INPUTS  : ConfigService, session factory, data dir, store + embedder.
@@ -7,6 +7,7 @@ HOW TO EXTEND : change chunking in chunk_text(); add file loaders (PDF/DOCX) in 
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Any
@@ -55,21 +56,23 @@ def seed_documents(config: Any, session_factory: Any) -> int:
             s.add(Document(doc_id=e["doc_id"], title=e["title"], filename=e.get("file", ""),
                            classification=e.get("classification", "internal"),
                            allowed_roles=e.get("allowed_roles", []), keywords=e.get("keywords", []),
-                           description=e.get("description", "")))
+                           description=e.get("description", ""), attributes=e.get("attributes", {}),
+                           chunk_rules=e.get("chunk_rules", [])))
             added += 1
         s.commit()
     return added
 
 
 def index_document(store: Any, embedder: Any, doc_id: str, title: str, text: str,
-                   chunk_chars: int = 500, overlap: int = 80) -> int:
+                   chunk_chars: int = 500, overlap: int = 80, version: int = 1) -> int:
     chunks = chunk_text(text, chunk_chars, overlap)
     if not chunks:
         return 0
     store.delete_doc(doc_id)
     # the title is part of what is embedded (not of the stored text) so every chunk is findable by document name
     store.add([f"{doc_id}:{i}" for i in range(len(chunks))], embedder.embed([f"{title}. {c}" for c in chunks]), chunks,
-              [{"doc_id": doc_id, "title": title, "chunk": i} for i in range(len(chunks))])
+              [{"doc_id": doc_id, "title": title, "chunk": i, "version": version,
+               "sha": hashlib.sha256(c.encode()).hexdigest()[:12]} for i, c in enumerate(chunks)])  # provenance
     return len(chunks)
 
 
@@ -80,6 +83,6 @@ def index_all(config: Any, session_factory: Any, store: Any, embedder: Any, data
         docs = s.execute(select(Document).where(Document.active.is_(True))).scalars().all()
     for d in docs:
         total += index_document(store, embedder, d.doc_id, d.title, read_document(data_dir, d.filename),
-                                rag.get("chunk_chars", 500), rag.get("chunk_overlap", 80))
+                                rag.get("chunk_chars", 500), rag.get("chunk_overlap", 80), d.version or 1)
     return total
 

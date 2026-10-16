@@ -1,4 +1,4 @@
-# PURPOSE: identity-document validation rules (FORMAT and CHECKSUM only - ShieldGate cannot confirm
+# PURPOSE: identity-document validation rules (FORMAT and CHECKSUM only - AIZA:Portal cannot confirm
 #          a number was issued; only UIDAI / the card network / the regulator can).
 # kind selects the validator in detectors/validators.py. `invalid_type` is reported only when a context
 # word precedes the number, or (grouped_triggers: true) it is typed in the typical 4-4-4 grouped layout.
@@ -29,6 +29,14 @@ types:
     invalid_type: CARD_INVALID
     severity: critical
     context: [card, credit, debit, visa, mastercard, rupay, cc]
+  - type: CARD
+    kind: luhn
+    label: payment card number (Amex layout)
+    regex: '(?<!\d)(?<!\d[ -])\d{4}[ -]?\d{6}[ -]?\d{5}(?![ -]?\d)'
+    valid_type: CARD
+    invalid_type: CARD_INVALID
+    severity: critical
+    context: [card, credit, debit, amex, "american express"]
   - type: PAN
     kind: pan
     label: PAN

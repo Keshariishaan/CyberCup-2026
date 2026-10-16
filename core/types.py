@@ -100,6 +100,7 @@ class PipelineContext:
     halted: bool = False
     notices: list[dict[str, str]] = field(default_factory=list)
     chunks: list[dict[str, Any]] = field(default_factory=list)
+    provenance: list[dict[str, Any]] = field(default_factory=list)  # chunk ids + versions the answer was built from
     skill_outputs: list[dict[str, str]] = field(default_factory=list)
     messages: list[dict[str, str]] = field(default_factory=list)
     system_prompt: str = ""

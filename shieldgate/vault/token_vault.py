@@ -56,10 +56,17 @@ class TokenVault:
         except InvalidToken:
             return None
 
-    def restore(self, scope: str, text: str, restore_cfg: dict[str, Any] | None = None) -> tuple[str, int]:
-        """Replace placeholders with real (or masked) values for the user who typed them."""
+    def restore_ex(self, scope: str, text: str, restore_cfg: dict[str, Any] | None = None,
+                   allow_full: frozenset[str] | set[str] = frozenset()) -> tuple[str, int, list[dict[str, str]]]:
+        """Replace placeholders with real/masked values for the user who typed them.
+
+        Modes per type (policy.yaml restore.per_type): full | masked | approval. "approval" shows the value masked
+        unless the placeholder is in `allow_full` (an unexpired approved reveal). Returns (text, count, pending),
+        where pending lists masked placeholders that COULD be revealed with an approval.
+        """
         cfg = restore_cfg or {}
         count = 0
+        pending: list[dict[str, str]] = []
 
         def sub(m: re.Match[str]) -> str:
             nonlocal count
@@ -68,6 +75,15 @@ class TokenVault:
                 return m.group(0)
             count += 1
             mode = cfg.get("per_type", {}).get(m.group(1), cfg.get("default", "masked"))
-            return value if mode == "full" else mask_value(value)
+            if mode == "full" or m.group(0) in allow_full:
+                return value
+            masked = mask_value(value)
+            if mode == "approval":
+                pending.append({"placeholder": m.group(0), "type": m.group(1), "masked": masked})
+            return masked
 
-        return PLACEHOLDER.sub(sub, text), count
+        return PLACEHOLDER.sub(sub, text), count, pending
+
+    def restore(self, scope: str, text: str, restore_cfg: dict[str, Any] | None = None) -> tuple[str, int]:
+        out, n, _ = self.restore_ex(scope, text, restore_cfg)
+        return out, n

@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import select
 
 from shieldgate.audit.hashing import entry_hash
+from shieldgate.audit.incidents import track
 from shieldgate.db.models import AuditLog, utcnow
 
 FORBIDDEN_KEYS = {"text", "prompt", "response", "value", "content", "message"}
@@ -43,6 +44,10 @@ class DBAuditSink:
                                prev_hash=self._prev, entry_hash=h))
                 s.commit()
             self._prev = h
+        try:  # incidents are derived data: never let them break audit writing
+            track(self.sf, {**event, "details": details})
+        except Exception:  # noqa: BLE001
+            pass
 
     def verify_chain(self, instance: str | None = None) -> tuple[bool, int]:
         """Recompute every hash for an instance chain; returns (ok, rows_checked)."""
@@ -68,6 +73,36 @@ class DBAuditSink:
                  "status": r.status, "severity": r.severity, "details": r.details,
                  "request_id": r.request_id} for r in rows]
 
+    BLOCKED_STATUSES = ("blocked", "denied", "held")
+
+    def chat_requests(self, kind: str = "blocked", days: int = 30, limit: int = 200) -> list[dict[str, Any]]:
+        """Content-free list of chat requests by outcome: 'blocked' (blocked/denied/held), 'allowed', or 'all'."""
+        since = utcnow() - timedelta(days=days)
+        q = select(AuditLog).where(AuditLog.event == "chat", AuditLog.ts >= since).order_by(AuditLog.id.desc()).limit(limit)
+        if kind == "blocked":
+            q = q.where(AuditLog.status.in_(self.BLOCKED_STATUSES))
+        elif kind == "allowed":
+            q = q.where(AuditLog.status == "allowed")
+        with self.sf() as s:
+            rows = s.execute(q).scalars().all()
+        return [{"id": r.id, "time": r.ts.isoformat(), "user": r.username, "role": r.role, "status": r.status,
+                 "severity": r.severity, "request_id": r.request_id,
+                 "finding_types": r.details.get("finding_types", {}), "actions": r.details.get("actions", {}),
+                 "policies": r.details.get("policies", []), "conversation_id": r.details.get("conversation_id", "")}
+                for r in rows]
+
+    def priority_event(self, user_id: int) -> dict[str, Any] | None:
+        """The user's most severe recent chat event (critical beats high; newest wins ties), or None."""
+        with self.sf() as s:
+            rows = s.execute(select(AuditLog).where(AuditLog.user_id == user_id, AuditLog.event == "chat",
+                                                    AuditLog.severity.in_(("high", "critical")))
+                             .order_by(AuditLog.id.desc()).limit(200)).scalars().all()
+        if not rows:
+            return None
+        best = max(rows, key=lambda r: (r.severity == "critical", r.id))
+        return {"id": best.id, "time": best.ts.isoformat(), "status": best.status, "severity": best.severity,
+                "request_id": best.request_id, "details": best.details}
+
     def summary(self, days: int = 30) -> dict[str, Any]:
         """Aggregates for dashboards/reports: counts by event/status/severity and finding types."""
         since = utcnow() - timedelta(days=days)
@@ -78,6 +113,8 @@ class DBAuditSink:
         by_sev: dict[str, int] = {}
         by_type: dict[str, int] = {}
         daily: dict[str, int] = {}
+        blocked_daily: dict[str, int] = {}
+        outcomes: dict[str, dict[str, int]] = {}
         for r in rows:
             by_event[r.event] = by_event.get(r.event, 0) + 1
             if r.status:
@@ -85,6 +122,13 @@ class DBAuditSink:
             by_sev[r.severity] = by_sev.get(r.severity, 0) + 1
             for t, n in (r.details.get("finding_types") or {}).items():
                 by_type[t] = by_type.get(t, 0) + int(n)
-            daily[r.ts.date().isoformat()] = daily.get(r.ts.date().isoformat(), 0) + (1 if r.event == "chat" else 0)
+            day = r.ts.date().isoformat()
+            daily[day] = daily.get(day, 0) + (1 if r.event == "chat" else 0)
+            if r.event == "chat" and r.status in ("blocked", "denied", "held"):
+                blocked_daily[day] = blocked_daily.get(day, 0) + 1
+            if r.event == "chat":
+                kind = "allowed" if r.status == "allowed" else "blocked" if r.status in ("blocked", "denied", "held") else "other"
+                outcomes.setdefault(day, {"allowed": 0, "blocked": 0, "other": 0})[kind] += 1
         return {"days": days, "total_events": len(rows), "by_event": by_event, "by_status": by_status,
-                "by_severity": by_sev, "by_finding_type": by_type, "chat_per_day": daily}
+                "by_severity": by_sev, "by_finding_type": by_type, "chat_per_day": daily,
+                "blocked_per_day": blocked_daily, "daily_outcomes": outcomes}

@@ -26,10 +26,12 @@ def tool_definitions(user: CurrentUser, config: Any, privileges: list[str]) -> l
     return [s.tool_definition() for s in allowed_skills(user, config, privileges)]
 
 
-async def run_matching(text: str, user: CurrentUser, ctx: Any, config: Any, privileges: list[str]) -> list[dict[str, str]]:
+async def run_matching(text: str, user: CurrentUser, ctx: Any, config: Any, privileges: list[str],
+                       force: str | None = None) -> list[dict[str, str]]:
+    """Run skills whose trigger words appear in the text - or, with `force` (a slash command), exactly that skill."""
     low = text.lower()
     out: list[dict[str, str]] = []
     for skill in allowed_skills(user, config, privileges):
-        if any(t in low for t in skill.triggers):
+        if (force and skill.name == force) or (not force and any(t in low for t in skill.triggers)):
             out.append({"skill": skill.name, "output": (await skill.run(text, user, ctx))[:1200]})
     return out

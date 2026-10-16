@@ -34,4 +34,6 @@ def make_llm(settings: Any, config: Any) -> LLMProvider:
     return REGISTRIES["llm"].create(
         name, model=settings.llm_model or cfg.get("model", ""),
         base_url=settings.llm_base_url or cfg.get("base_url", ""),
-        api_key=settings.llm_api_key, timeout=cfg.get("timeout_s", 30))
+        api_key=settings.llm_api_key, timeout=cfg.get("timeout_s", 30),
+        think=cfg.get("think", False), keep_alive=cfg.get("keep_alive", "1h"), max_tokens=cfg.get("max_tokens", 512),
+        num_ctx=cfg.get("num_ctx", 2048))

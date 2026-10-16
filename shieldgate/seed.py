@@ -17,12 +17,14 @@ from shieldgate.rag.ingest import index_all, seed_documents
 from shieldgate.security.auth_providers import hash_password
 
 DEMO_PASSWORD = "Demo@123"
+# (username, role, full name, department, region, clearance level); "*" = matches any department/region
 DEMO_USERS = [
-    ("intern1", "intern", "Karan Verma"),
-    ("emp1", "employee", "Riya Sharma"),
-    ("hr1", "hr_admin", "Sunita Rao"),
-    ("mgr1", "manager", "Arjun Mehta"),
-    ("admin1", "admin", "Neha Kapoor"),
+    ("intern1", "intern", "Karan Verma", "sales", "north", 0),
+    ("emp1", "employee", "Riya Sharma", "sales", "north", 1),
+    ("fin1", "finance", "Farhan Qureshi", "finance", "*", 1),
+    ("hr1", "hr_admin", "Sunita Rao", "hr", "*", 2),
+    ("mgr1", "manager", "Arjun Mehta", "sales", "south", 2),
+    ("admin1", "admin", "Neha Kapoor", "*", "*", 3),
 ]
 
 
@@ -30,10 +32,14 @@ def seed_users(session_factory: Any) -> int:
     added = 0
     pw = hash_password(DEMO_PASSWORD)
     with session_factory() as s:
-        for username, role, name in DEMO_USERS:
-            if s.execute(select(User).where(User.username == username)).scalars().first():
+        for username, role, name, dept, region, clearance in DEMO_USERS:
+            u = s.execute(select(User).where(User.username == username)).scalars().first()
+            if u:
+                if u.department is None:  # database created before attributes existed
+                    u.department, u.region, u.clearance = dept, region, clearance
                 continue
-            s.add(User(username=username, role=role, full_name=name, password_hash=pw))
+            s.add(User(username=username, role=role, full_name=name, password_hash=pw,
+                       department=dept, region=region, clearance=clearance))
             added += 1
         s.commit()
         intern = s.execute(select(User).where(User.username == "intern1")).scalars().first()

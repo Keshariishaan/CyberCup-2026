@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Red team - generate obfuscated prompt-injection attacks (English, Hinglish, Hindi,
           leetspeak, zero-width, wrapped ...) and measure the live detectors' catch rate.
           Runs detection + policy only: nothing is sent to an LLM or stored.
@@ -15,10 +15,11 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api_client as api  # noqa: E402
+from components import ui  # noqa: E402
 from components.metric_cards import metric_cards  # noqa: E402
 
 api.guard("redteam")
-st.title("Red team")
+ui.page_header("Red team", "Attack the gateway on purpose and measure what it catches", "&#128030;")
 n = st.slider("Attacks per category", 1, 30, 6)
 if st.button("Run attack suite", type="primary"):
     with st.spinner("Running..."):
@@ -28,8 +29,11 @@ if rep:
     metric_cards([("Overall catch rate", f"{rep['overall']:.0%}"), ("Attacks tried", rep["total"]),
                   ("False positives on benign prompts", f"{rep['false_positives']} / {rep['benign_total']}")])
     cats = rep["by_category"]
-    st.plotly_chart(px.bar(x=list(cats), y=[v["rate"] for v in cats.values()], range_y=[0, 1],
-                           labels={"x": "Technique", "y": "Catch rate"}), width="stretch")
+    fig = px.bar(x=list(cats), y=[v["rate"] for v in cats.values()], range_y=[0, 1], labels={"x": "Technique", "y": "Catch rate"},
+                 color=[v["rate"] for v in cats.values()], color_continuous_scale=["#ef4444", "#eab308", "#22c55e"], range_color=[0, 1])
+    fig.update_layout(coloraxis_showscale=False)
+    with st.container(border=True):
+        st.plotly_chart(ui.plotly_layout(fig, 340, "Catch rate by technique"), width="stretch")
     if rep["missed_examples"]:
         st.subheader("Missed examples (improve config/attacks/*.yaml)")
         st.dataframe(rep["missed_examples"], width="stretch", hide_index=True)

@@ -7,6 +7,9 @@ HOW TO EXTEND : choose detectors via pipeline.yaml response_detectors.
 """
 from __future__ import annotations
 
+import asyncio
+import re
+
 from core.interfaces import PipelineStage
 from core.registry import REGISTRIES, register_stage
 from core.types import BLOCKED
@@ -14,6 +17,19 @@ from shieldgate.pipeline.stages.act import apply_transforms
 from shieldgate.pipeline.stages.detect import get_detectors
 from shieldgate.policy.engine import PolicyEngine
 from shieldgate.detectors.base import run_detectors
+
+LEAK_WINDOW = 10  # consecutive words copied verbatim from the system prompt that count as a leak
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"\w+", text.lower())
+
+
+def leaks_system_prompt(system_prompt: str, answer: str, window: int = LEAK_WINDOW) -> bool:
+    """True when the answer repeats `window` or more consecutive words of the system prompt."""
+    sp, ans = _words(system_prompt), " ".join(_words(answer))
+    return any(" ".join(sp[i:i + window]) in ans for i in range(max(0, len(sp) - window + 1)))
+
 
 WITHHELD = "The AI's answer was withheld because it did not pass the response security checks."
 STOP_ACTIONS = {"deny", "deny_and_alert", "block", "block_with_rewrite"}
@@ -24,8 +40,15 @@ class InspectResponseStage(PipelineStage):
     async def run(self, ctx) -> None:  # noqa: ANN001
         svc = ctx.services
         text = ctx.llm_text
-        if ctx.canary and ctx.canary in text:
+        if (ctx.canary and ctx.canary in text) or leaks_system_prompt(ctx.system_prompt, text):
             ctx.audit("alert", severity="critical", types=["SYSTEM_PROMPT_LEAK"])
+            ctx.llm_text = ""
+            ctx.halt(BLOCKED, WITHHELD)
+            return
+        hits = await asyncio.to_thread(svc.rag.restricted_overlap, text, ctx.user.role,
+                                       ctx.extras.get("privileges", []), ctx.extras.get("attrs"))
+        if hits:  # the answer reproduces text of documents this user may not read
+            ctx.audit("alert", severity="critical", types=["RESTRICTED_CONTENT"], doc_ids=hits)
             ctx.llm_text = ""
             ctx.halt(BLOCKED, WITHHELD)
             return

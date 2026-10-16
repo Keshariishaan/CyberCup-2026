@@ -52,4 +52,5 @@ class PipelineController:
         total = (time.perf_counter() - ctx.started) * 1000
         ctx.timings["total"] = round(total, 2)
         ctx.timings["gateway_overhead"] = round(total - ctx.llm_ms, 2)
+        ctx.timings["llm"] = round(ctx.llm_ms, 1)
         return ctx

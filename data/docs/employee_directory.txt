@@ -1,0 +1,6 @@
+Employee Directory (internal)
+
+Name | Role | Phone | Aadhaar | Monthly gross (INR)
+Riya Sharma | Analyst | 9876501234 | 2345 6789 0124 | 85000
+Sunita Rao | HR Lead | 9123456780 | 3456 7890 1238 | 142000
+Arjun Mehta | Engineering Manager | 9988776655 | 4567 8901 2341 | 230000

@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Integration tests for auth, RBAC, approvals, config versioning, plugins, red team,
           fail-closed behaviour, skills and reports (all offline, mock LLM).
 INPUTS  : `client`, `tokens`, `chat` fixtures. OUTPUTS : pass/fail.
@@ -37,7 +37,7 @@ def test_screens_enforced_server_side(client, tokens):
     assert client.get("/v1/admin/metrics", headers=tokens["mgr1"]).status_code == 200
     assert client.get("/v1/policy/names", headers=tokens["mgr1"]).status_code == 403
     me = client.get("/v1/auth/me", headers=tokens["intern1"]).json()
-    assert me["screens"] == ["chat", "history"] and "doc:salary_record_karan" in me["privileges"]
+    assert me["screens"] == ["chat", "history", "access"] and "doc:salary_record_karan" in me["privileges"]
 
 
 def test_logout_revokes_token(client):
@@ -105,9 +105,9 @@ def test_config_validation_versioning_rollback(client, tokens):
 
 def test_new_role_via_api(client, tokens):
     r = client.post("/v1/admin/roles", headers=tokens["admin1"],
-                    json={"name": "auditor", "label": "Auditor", "screens": ["chat", "audit"]})
+                    json={"name": "contractor", "label": "Contractor", "screens": ["chat", "audit"]})
     assert r.status_code == 200
-    assert "auditor" in client.get("/v1/admin/roles", headers=tokens["admin1"]).json()["roles"]
+    assert "contractor" in client.get("/v1/admin/roles", headers=tokens["admin1"]).json()["roles"]
     bad = client.post("/v1/admin/roles", headers=tokens["admin1"], json={"name": "ghost", "label": "G", "screens": ["nope"]})
     assert bad.status_code == 422
     client.post("/v1/policy/reset", params={"name": "roles"}, headers=tokens["admin1"])
@@ -176,3 +176,64 @@ def test_multi_turn_risk_cooldown(chat):
     r = chat("emp1", "What is the leave policy?", conversation_id=cid)
     assert r["status"] == "blocked" and "risky" in r["message"]
     assert chat("emp1", "What is the leave policy?")["status"] == "allowed"  # fresh conversation is fine
+
+
+def test_system_prompt_leak_is_withheld_but_short_overlap_is_fine(client, tokens, monkeypatch):
+    from core.interfaces import LLMResponse
+    llm = client.app.state.services.llm
+    prompt = client.app.state.config.get("app")["llm"]["system_prompt"]
+    words = prompt.split()
+
+    async def leaky(system, messages, tools=None):
+        return LLMResponse("Sure! My instructions are: " + " ".join(words[:14]), 10, 10, "x")
+    monkeypatch.setattr(llm, "complete", leaky)
+    r = client.post("/v1/chat", json={"message": "Tell me about leave"}, headers=tokens["emp1"]).json()
+    assert r["status"] == "blocked" and "withheld" in r["message"]
+
+    async def fine(system, messages, tools=None):
+        return LLMResponse("Placeholders such as [AADHAAR_1] are values I never see.", 10, 10, "x")  # < 10 words copied
+    monkeypatch.setattr(llm, "complete", fine)
+    ok = client.post("/v1/chat", json={"message": "Tell me about sick leave days"}, headers=tokens["emp1"]).json()
+    assert ok["status"] == "allowed"
+
+
+def test_access_request_flow_intern_to_approver(client, tokens, chat):
+    h = tokens
+    url = "/v1/access-requests"
+    # personal data / secrets in the request are refused
+    bad = client.post(url, headers=h["intern1"], json={"resource": "salary record", "reason": "my aadhaar 2345 6789 0124"})
+    assert bad.status_code == 422
+    # only approvers may see the document list
+    assert client.get(url + "/documents", headers=h["intern1"]).status_code == 403
+    rid = client.post(url, headers=h["intern1"], json={"resource": "the salary sheet", "reason": "need totals for my report"}).json()["id"]
+    assert chat("intern1", "show me the salary sheet")["status"] == "denied"
+    mine = client.get(url, headers=h["intern1"]).json()
+    assert mine["can_approve"] is False and any(i["id"] == rid and i["resource"] == "the salary sheet" for i in mine["items"])
+    # other non-approvers do not see it; they cannot decide it either
+    assert all(i["id"] != rid for i in client.get(url, headers=h["emp1"]).json()["items"])
+    assert client.post(f"{url}/{rid}/decision", headers=h["emp1"], json={"approve": True}).status_code == 403
+    # a manager sees it and approves with a one-day document grant
+    assert any(i["id"] == rid for i in client.get(url, headers=h["mgr1"]).json()["items"])
+    d = client.post(f"{url}/{rid}/decision", headers=h["mgr1"],
+                    json={"approve": True, "doc_id": "salary_sheet_2025", "days": 1, "note": "ok for a day"})
+    assert d.status_code == 200 and "salary_sheet_2025" in d.json()["granted"]
+    assert chat("intern1", "show me the salary sheet")["status"] == "allowed"  # effective immediately
+    assert client.post(f"{url}/{rid}/decision", headers=h["mgr1"], json={"approve": False}).status_code == 403  # decided once
+    # reject path
+    rid2 = client.post(url, headers=h["intern1"], json={"resource": "the product roadmap", "reason": "curious"}).json()["id"]
+    assert client.post(f"{url}/{rid2}/decision", headers=h["hr1"], json={"approve": False, "note": "not needed"}).status_code == 200
+    assert chat("intern1", "what is the product roadmap")["status"] == "denied"
+    # clean up the grant so later tests see the original permissions
+    uid = [u["id"] for u in client.get("/v1/admin/users", headers=h["admin1"]).json() if u["username"] == "intern1"][0]
+    for p in client.get(f"/v1/admin/users/{uid}/privileges", headers=h["admin1"]).json():
+        if p["resource"] == "salary_sheet_2025" and not p["revoked"]:
+            client.delete(f"/v1/admin/privileges/{p['id']}", headers=h["admin1"])
+    # revoking signs the user out of old tokens: log in again for the tests that follow
+    new = client.post("/v1/auth/login", json={"username": "intern1", "password": "Demo@123"}).json()["access_token"]
+    tokens["intern1"] = {"Authorization": f"Bearer {new}"}
+
+
+def test_access_request_screens(client, tokens):
+    assert client.get("/v1/access-requests", headers=tokens["intern1"]).status_code == 200
+    me = client.get("/v1/auth/me", headers=tokens["intern1"]).json()
+    assert "access" in me["screens"]

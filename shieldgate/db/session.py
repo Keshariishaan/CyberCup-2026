@@ -9,7 +9,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Iterator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -36,9 +36,31 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
+def ensure_columns(engine: Engine) -> list[str]:
+    """Add columns that exist in the models but not yet in the database (lightweight auto-upgrade).
+
+    create_all() only creates missing TABLES, so an older database file would otherwise break when a model gains
+    a column. New columns are added as nullable; code treats NULL as the default. Production: use Alembic.
+    """
+    added: list[str] = []
+    insp = inspect(engine)
+    with engine.begin() as cn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in have:
+                    ddl = col.type.compile(dialect=engine.dialect)
+                    cn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {ddl}'))
+                    added.append(f"{table.name}.{col.name}")
+    return added
+
+
 def init_db(engine: Engine) -> None:
-    """Create tables (dev convenience; production should run `alembic upgrade head`)."""
+    """Create tables and upgrade older ones (dev convenience; production should run `alembic upgrade head`)."""
     Base.metadata.create_all(engine)
+    ensure_columns(engine)
 
 
 @contextmanager

@@ -1,5 +1,5 @@
 """
-PURPOSE : Abstract base classes for every replaceable part of ShieldGate.
+PURPOSE : Abstract base classes for every replaceable part of AIZA:Portal.
 INPUTS  : none (interfaces only).
 OUTPUTS : Detector, Action, LLMProvider, VectorStore, Embedder, ReportGenerator,
           Skill, SessionStore, AuthProvider, PipelineStage.
@@ -64,6 +64,9 @@ class LLMProvider(ABC):
     def __init__(self, **options: Any) -> None:
         self.options = options
 
+    async def warm_up(self) -> None:
+        """Optional: load the model before the first user request (default: nothing to do)."""
+
     @abstractmethod
     async def complete(self, system: str, messages: list[dict[str, str]],
                        tools: list[dict[str, Any]] | None = None) -> LLMResponse:
@@ -116,6 +119,10 @@ class Skill(ABC):
 
     name: str = "skill"
     description: str = ""
+    command: str = ""  # short slash command typed in chat, e.g. /policy
+    example: str = ""  # one example request
+    usage: str = ""  # when it is useful (one line)
+    default_query: str = ""  # used when the command is typed without text
     triggers: list[str] = []  # lowercase substrings that activate the skill
     parameters: dict[str, Any] = {"type": "object", "properties": {}}
 
@@ -125,7 +132,9 @@ class Skill(ABC):
 
     def tool_definition(self) -> dict[str, Any]:
         """Tool schema exposed via the gateway (never executed by the model directly)."""
-        return {"name": self.name, "description": self.description, "input_schema": self.parameters}
+        return {"name": self.name, "description": self.description, "input_schema": self.parameters,
+                "command": self.command, "example": self.example, "usage": self.usage,
+                "default_query": self.default_query}
 
 
 class SessionStore(ABC):

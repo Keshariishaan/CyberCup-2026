@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Role/screen matrix + data-level privileges. FastAPI dependencies that
           authenticate (JWT + revocation list) and enforce screens/privileges on every route.
 INPUTS  : Authorization: Bearer <jwt>; roles from ConfigService; privileges from DB.
@@ -32,11 +32,28 @@ def active_privileges(session_factory: Any, user_id: int) -> list[str]:
     """Non-revoked, non-expired DB privileges as 'kind:resource' strings (authoritative)."""
     from sqlalchemy import select
     from shieldgate.db.models import UserPrivilege, utcnow
+    from shieldgate.db.models import CustomPrivilege
     now = utcnow()
     with session_factory() as s:
         rows = s.execute(select(UserPrivilege).where(
             UserPrivilege.user_id == user_id, UserPrivilege.revoked.is_(False))).scalars().all()
-    return sorted({f"{r.kind}:{r.resource}" for r in rows if r.expires_at is None or r.expires_at > now})
+        live = [r for r in rows if r.expires_at is None or r.expires_at > now]
+        names = [r.resource for r in live if r.kind == "custom"]
+        bundles = s.execute(select(CustomPrivilege).where(CustomPrivilege.name.in_(names))).scalars().all() if names else []
+    out = {f"{r.kind}:{r.resource}" for r in live}
+    for b in bundles:  # a custom bundle grants every document and skill it lists
+        out |= {f"doc:{d}" for d in b.docs or []} | {f"skill:{s}" for s in b.skills or []}
+    return sorted(out)
+
+
+def user_attributes(session_factory: Any, user_id: int) -> dict[str, Any]:
+    """Attributes used by attribute-based document access (DB is authoritative, NULL -> defaults)."""
+    from shieldgate.db.models import User
+    with session_factory() as s:
+        u = s.get(User, user_id)
+    if u is None:
+        return {"department": "", "region": "", "clearance": 0}
+    return {"department": u.department or "", "region": u.region or "", "clearance": 1 if u.clearance is None else u.clearance}
 
 
 def invalidate_user_tokens(store: Any, user_id: int, ttl: int = 86400) -> None:

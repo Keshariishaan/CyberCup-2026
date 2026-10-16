@@ -1,4 +1,4 @@
-﻿"""
+"""
 PURPOSE : Generic YAML config editor: pick a config file, edit as YAML, save (server-side schema
           validation -> new version), view version history, roll back, or reset to the shipped file.
 INPUTS  : names to offer (default: all). OUTPUTS : edits via /v1/policy/*.
@@ -30,6 +30,17 @@ def config_editor(names: list[str], key: str = "cfg") -> None:
     if c2.button("Reset to shipped file", key=f"{key}-reset"):
         api.post("/policy/reset", params={"name": name})
         st.success("Reverted to the YAML file shipped with the product.")
+    if name == "policy" and st.button("Run policy tests on this draft", key=f"{key}-test"):
+        try:
+            res = api.post("/policy/check", json={"data": yaml.safe_load(text)})
+            (st.success if res["ok"] else st.error)("All policy tests pass." if res["ok"] else "Some policy tests fail - this draft cannot be saved.")
+            st.dataframe([{"test": r["id"], "pass": "yes" if r["ok"] else "NO", "expected": str(r["expected"]),
+                           "actual blocking action": str(r["actual"]["blocking"])} for r in res["results"]],
+                         width="stretch", hide_index=True)
+        except yaml.YAMLError as exc:
+            st.error(f"Not valid YAML: {exc}")
+        except api.ApiError as exc:
+            st.error(exc.detail)
     versions = api.get("/policy/versions", params={"name": name})
     if versions:
         st.subheader("Version history")

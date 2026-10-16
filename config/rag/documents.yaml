@@ -20,7 +20,7 @@ documents:
     title: Customer KYC FAQ
     file: kyc_faq.txt
     classification: internal
-    allowed_roles: [employee, hr_admin, manager, admin]
+    allowed_roles: [employee, finance, hr_admin, manager, admin]
     keywords: [kyc, customer verification, aadhaar kyc, onboarding checklist]
   - doc_id: salary_sheet_2025
     title: Salary Sheet FY2025
@@ -40,3 +40,21 @@ documents:
     classification: confidential
     allowed_roles: [manager, admin]
     keywords: [roadmap, product roadmap, upcoming launch, strategy]
+  - doc_id: employee_directory
+    title: Employee Directory
+    file: employee_directory.txt
+    classification: internal
+    allowed_roles: [employee, finance, hr_admin, manager, admin]
+    keywords: [employee directory, staff directory, phone directory]
+    # redaction INSIDE a readable document: Aadhaar masked for everyone, salary visible only to HR/admin
+    chunk_rules:
+      - {roles: "*", mask_columns: [Aadhaar]}
+      - {roles: [employee, manager], mask_columns: ["Monthly gross (INR)"]}
+  - doc_id: north_region_kpis
+    title: North Region Sales KPIs
+    file: north_region_kpis.txt
+    classification: internal
+    allowed_roles: ["*"]
+    # attribute-based access on top of roles: sales department, north region, clearance level 1 or higher
+    attributes: {departments: [sales], regions: [north], min_clearance: 1}
+    keywords: [north region kpis, north sales kpis, north region sales]

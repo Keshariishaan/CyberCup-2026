@@ -6,6 +6,11 @@
 | Sensitive values (Aadhaar, card, PAN ...) | SessionStore vault | Fernet-encrypted, per-conversation TTL (`limits.vault_ttl_s`), key `VAULT_KEY` |
 | Conversation memory (for multi-turn context) | `messages` table | Fernet-encrypted **sanitized** text (placeholders such as `[AADHAAR_1]`, never raw values), TTL (`limits.memory_ttl_s`), purged on expiry |
 | Audit trail | `audit_log` | event, status, severity, finding **types and counts**, ids, token counts, timings, entry hash. Defensively strips keys like `text`, `prompt`, `value` |
+| Access requests (the written form) | `access_requests` | Fernet-encrypted text (what/why, max 120 + 300 chars), checked for personal data and secrets before it is accepted; audit rows hold ids only |
+| Incidents | `incidents` | category, severity, counts, timestamps, user - never message text |
+| Reveal requests | `reveal_requests` | placeholder name (e.g. `[CARD_1]`), status, expiry; the value stays encrypted in the vault and is returned only to the requester while an approval is active |
+| Provenance | audit `details.provenance` | chunk ids, document versions and 12-character fingerprints - never chunk text |
+| Policy tests | `config_versions.tests` | the test prompts of `config/policy_tests.yaml` (synthetic samples, not user data) |
 | Approvals | `approvals` | finding types + HMAC of the text; approvers never see the text |
 | Response cache | SessionStore | encrypted sanitized answer, short TTL (`llm.cache.ttl_s`); set `enabled: false` to disable |
 | Logs | stderr | scrubbed by `core/logging.py` (digit runs, emails, tokens, key-like strings); tracebacks are suppressed so exception text cannot leak values |
@@ -21,7 +26,7 @@ masked, never restored.
 Tests in `tests/privacy/` assert that none of several sensitive samples appears in any table, in log
 output, or in the text sent to the LLM.
 
-**Wording.** ShieldGate performs *format and checksum validation*. It never says a number is "verified"
+**Wording.** AIZA:Portal performs *format and checksum validation*. It never says a number is "verified"
 or "issued": only UIDAI (Aadhaar), the card network/bank, or the Income Tax Department can confirm that.
 The DPDP report is an engineering summary of controls, not legal advice or certification.
 

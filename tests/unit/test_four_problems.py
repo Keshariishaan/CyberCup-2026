@@ -1,5 +1,5 @@
 """
-PURPOSE : End-to-end tests of the four problems ShieldGate must visibly solve.
+PURPOSE : End-to-end tests of the four problems AIZA:Portal must visibly solve.
 INPUTS  : seeded demo users via the `chat` fixture. OUTPUTS : pass/fail.
 HOW TO EXTEND : add scenarios; keep them offline (mock LLM).
 """

@@ -35,6 +35,7 @@ class RoleSpec(_Loose):
     daily_token_budget: int = 20000
     can_approve: bool = False
     color: str = "#64748b"
+    notifications: str = ""  # "" | flagged (managers) | critical (admins): feeds the bell
 
 
 class RolesConfig(_Loose):
@@ -147,6 +148,16 @@ class IdentityConfig(_Loose):
     types: list[IdentityRule]
 
 
+class PolicyTestCase(_Loose):
+    id: str
+    text: str
+    role: str = "employee"
+
+
+class PolicyTestsConfig(_Loose):
+    tests: list[PolicyTestCase] = Field(default_factory=list)
+
+
 class AppConfig(_Loose):
     llm: dict[str, Any] = Field(default_factory=dict)
     rag: dict[str, Any] = Field(default_factory=dict)
@@ -154,11 +165,11 @@ class AppConfig(_Loose):
 
 
 SCHEMAS: dict[str, type[BaseModel]] = {
-    "roles": RolesConfig, "policy": PolicyConfig, "pipeline": PipelineConfig, "ui": UiConfig,
+    "roles": RolesConfig, "policy": PolicyConfig, "policy_tests": PolicyTestsConfig, "pipeline": PipelineConfig, "ui": UiConfig,
     "detectors": DetectorsConfig, "identity": IdentityConfig, "app": AppConfig,
     "patterns/india": PatternsConfig, "patterns/secrets": PatternsConfig,
     "patterns/confidential": _Loose, "attacks/en": AttacksConfig, "attacks/hi": AttacksConfig,
-    "attacks/hinglish": AttacksConfig,
+    "attacks/hinglish": AttacksConfig, "attacks/extraction": AttacksConfig,
 }
 
 
@@ -229,7 +240,7 @@ class ConfigService:
             self._cache.clear()
 
     # ---- write ---------------------------------------------------------
-    def update(self, name: str, data: dict[str, Any], actor: str, comment: str = "") -> int:
+    def update(self, name: str, data: dict[str, Any], actor: str, comment: str = "", tests: list[Any] | None = None) -> int:
         """Validate then store as a new active version. Returns the version number."""
         if not self.sf:
             raise ConfigError("no database configured for versioned edits")
@@ -243,7 +254,7 @@ class ConfigService:
                              .order_by(ConfigVersion.version.desc())).scalars().first() or 0
             s.execute(update(ConfigVersion).where(ConfigVersion.name == name).values(active=False))
             s.add(ConfigVersion(name=name, version=last + 1, data=clean, created_by=actor,
-                                comment=comment[:255], active=True))
+                                comment=comment[:255], active=True, tests=tests))
             s.commit()
         self.invalidate()
         return last + 1
@@ -257,9 +268,19 @@ class ConfigService:
             rows = s.execute(select(ConfigVersion).where(ConfigVersion.name == name)
                              .order_by(ConfigVersion.version.desc())).scalars().all()
             return [{"version": r.version, "created_by": r.created_by, "comment": r.comment,
-                     "active": r.active, "created_at": r.created_at.isoformat()} for r in rows]
+                     "active": r.active, "created_at": r.created_at.isoformat(),
+                     "tests": len(r.tests or [])} for r in rows]
 
-    def rollback(self, name: str, version: int, actor: str) -> int:
+    def version_data(self, name: str, version: int) -> dict[str, Any] | None:
+        if not self.sf:
+            return None
+        from sqlalchemy import select
+        from shieldgate.db.models import ConfigVersion
+        with self.sf() as s:
+            row = s.execute(select(ConfigVersion).where(ConfigVersion.name == name, ConfigVersion.version == version)).scalars().first()
+            return dict(row.data) if row else None
+
+    def rollback(self, name: str, version: int, actor: str, tests: list[Any] | None = None) -> int:
         """Re-activate an older version as a NEW version (history is never rewritten)."""
         if not self.sf:
             raise ConfigError("no database configured")
@@ -271,7 +292,7 @@ class ConfigService:
             if not row:
                 raise ConfigError("version not found")
             data = dict(row.data)
-        return self.update(name, data, actor, comment=f"rollback to v{version}")
+        return self.update(name, data, actor, comment=f"rollback to v{version}", tests=tests)
 
     def reset_to_file(self, name: str, actor: str) -> None:
         """Deactivate all DB versions so the shipped YAML applies again."""

@@ -14,10 +14,11 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api_client as api  # noqa: E402
+from components import ui  # noqa: E402
 from components.config_editor import config_editor  # noqa: E402
 
 api.guard("policies")
-st.title("Policies and configuration")
+ui.page_header("Policies and configuration", "Edit rules safely: validated, versioned and tested", "&#128220;")
 tab_edit, tab_reg = st.tabs(["Edit configuration", "Registered components"])
 with tab_edit:
     names = api.get("/policy/names")

@@ -1,0 +1,21 @@
+# AIZA:Portal theme - one locked dark look, system fonts (no external downloads).
+# Run Streamlit from the project root so this file is picked up: `streamlit run frontend/app.py`.
+[theme]
+base = "dark"
+primaryColor = "#7c83ff"
+backgroundColor = "#0b1020"
+secondaryBackgroundColor = "#131a2e"
+textColor = "#e7eaf6"
+baseRadius = "large"
+font = "sans-serif"
+showSidebarBorder = true
+
+[theme.sidebar]
+backgroundColor = "#0e1427"
+secondaryBackgroundColor = "#161e36"
+
+[client]
+toolbarMode = "minimal"   # hides the Deploy button and developer menu entries
+
+[browser]
+gatherUsageStats = false

@@ -71,6 +71,20 @@ class ConversationMemory:
                 conv.updated_at = utcnow()
             s.commit()
 
+    def append_turn(self, conversation_id: str, user_text: str, assistant_text: str) -> None:
+        """Store both sides of a turn in ONE transaction (one round trip instead of two)."""
+        ttl = self.config.get("app")["limits"].get("memory_ttl_s", 86400)
+        exp = utcnow() + timedelta(seconds=ttl)
+        with self.sf() as s:
+            for role, text in (("user", user_text), ("assistant", assistant_text)):
+                s.add(Message(conversation_id=conversation_id, role=role, tokens=estimate_tokens(text),
+                              content_enc=self.fernet.encrypt(text.encode()).decode(), expires_at=exp))
+            conv = s.get(Conversation, conversation_id)
+            if conv:
+                conv.turns += 1
+                conv.updated_at = utcnow()
+            s.commit()
+
     def risk(self, conversation_id: str) -> float:
         with self.sf() as s:
             conv = s.get(Conversation, conversation_id)
