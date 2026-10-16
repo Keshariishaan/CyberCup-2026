@@ -5,3 +5,9 @@ __pycache__/
 .pytest_cache/
 *.db
 data/chroma/
+
+# AI-agent / orientation notes kept local
+MASTERPROMPT.md
+ORIENTATION.md
+CLAUDE.md
+.claude/
